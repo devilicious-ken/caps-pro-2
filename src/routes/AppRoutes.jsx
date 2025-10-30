@@ -60,13 +60,14 @@ const AppRoutes = ({ user }) => {
 
       {/* Register - All users */}
       <Route
-        path="/register"
-        element={
-          <ProtectedRoute allowedRoles={["admin", "moderator", "user"]}>
-            <RegisterPage user={user} />
-          </ProtectedRoute>
-        }
-      />
+  path="/register"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "moderator", "user"]}>
+      <RegisterPage user={user} />  {/* <-- Make sure user is passed */}
+    </ProtectedRoute>
+  }
+/>
+
 
       {/* GIS Map - All users */}
       <Route

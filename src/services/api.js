@@ -1,85 +1,191 @@
 // src/services/api.js
-
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client with environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// AUTH
-
-// Sign up with Supabase (optional, not used in your main App by default)
-export const register = async (email, password) => {
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  return { data, error };
-};
-
-// Sign in with Supabase Auth (auth.users table)
-export const login = async (email, password) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  return { data, error };
-};
-
-// Sign in by checking custom users table
-export const loginTable = async (email, password) => {
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("email", email)
-    .eq("password", password)
-    .single();
-  return { data, error };
-};
-
-// Get current user (from Supabase Auth session)
-export const getProfile = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return { success: false, error };
-  return { success: true, data };
-};
-
-// Supabase sign out (and clear local session data)
-export const logout = async () => {
-  await supabase.auth.signOut();
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  localStorage.removeItem("isLoggedIn");
-};
-
-// Example: Call a Supabase Edge Function
-export const getCountries = async () => {
-  const { data, error } = await supabase.functions.invoke("my-function", {
-    body: { name: "Some data" },
-    method: "POST",
-  });
-  if (error) {
-    console.error("Error fetching countries:", error);
-  }
-  return data;
-};
-
-// Example: Query a Supabase table directly
-export const fetchCountries = async () => {
-  const { data, error } = await supabase.from("countries").select("*");
-  if (error) {
-    console.error("Error querying countries:", error);
-  }
-  return data || [];
-};
-
-// Bundle ALL functions in default export object
 const ApiService = {
-  register,
-  login,
-  loginTable, // <-- Added here for use everywhere
-  getProfile,
-  logout,
-  getCountries,
-  fetchCountries,
+  // ===== AUTHENTICATION =====
+  async login(email, password) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .single();
+
+      if (error) throw error;
+      return { data: { user: data }, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  },
+
+  logout() {
+    // Custom logout logic if needed
+    return { error: null };
+  },
+
+  // ===== REGISTRATION FUNCTIONS =====
+  
+  async createRegistrant(data) {
+    const { data: result, error } = await supabase
+      .from('registrants')
+      .insert([data])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createAddress(data) {
+    const { data: result, error } = await supabase
+      .from('addresses')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createFarmParcel(data) {
+    const { data: result, error } = await supabase
+      .from('farm_parcels')
+      .insert([data])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createParcelInfos(data) {
+    const { data: result, error } = await supabase
+      .from('parcel_infos')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createCrops(data) {
+    const { data: result, error } = await supabase
+      .from('crops')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createLivestock(data) {
+    const { data: result, error } = await supabase
+      .from('livestock')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createPoultry(data) {
+    const { data: result, error } = await supabase
+      .from('poultry')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createFishingActivities(data) {
+    const { data: result, error } = await supabase
+      .from('fishing_activities')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createWorkTypes(data) {
+    const { data: result, error } = await supabase
+      .from('work_types')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createInvolvementTypes(data) {
+    const { data: result, error } = await supabase
+      .from('involvement_types')
+      .insert(data)
+      .select();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  async createFinancialInfo(data) {
+    const { data: result, error } = await supabase
+      .from('financial_infos')
+      .insert([data])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return result;
+  },
+
+  // ===== QUERY FUNCTIONS (for displaying records) =====
+  
+  async getRegistrants() {
+    const { data, error } = await supabase
+      .from('registrants')
+      .select(`
+        *,
+        addresses(*),
+        crops(*),
+        livestock(*),
+        poultry(*),
+        farm_parcels(*),
+        financial_infos(*)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+  },
+  
+
+  async getRegistrantById(id) {
+    const { data, error } = await supabase
+      .from('registrants')
+      .select(`
+        *,
+        addresses(*),
+        farm_parcels(*, parcel_infos(*)),
+        crops(*),
+        livestock(*),
+        poultry(*),
+        fishing_activities(*),
+        work_types(*),
+        involvement_types(*),
+        financial_infos(*)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
 };
 
 export default ApiService;
