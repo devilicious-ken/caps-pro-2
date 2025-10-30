@@ -99,69 +99,69 @@ const AppContent = () => {
     // OMITTED FOR BREVITY
   };
 
-  // Login against Supabase users table (no Supabase Auth)
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setLoginError("");
-    setShowErrorModal(false);
-    setShowSuccessModal(false);
-    setShowSuspendedModal(false);
+ // Login against Supabase users table (no Supabase Auth)
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setLoginError("");
+  setShowErrorModal(false);
+  setShowSuccessModal(false);
+  setShowSuspendedModal(false);
 
-    try {
-      const { data: profile, error: tableErr } = await ApiService.loginTable(
-        email,
-        password
-      );
-      if (tableErr || !profile) {
-        throw new Error("Invalid email or password");
-      }
-
-      // Block login if account is suspended/inactive
-      if (profile.is_active === false) {
-        const msg = "Your account is suspended. Please contact your administrator.";
-        setErrorMessage(msg);
-        setShowSuspendedModal(true);
-        setLoading(false);
-        return;
-      }
-
-      const userData = {
-        id: profile.id,
-        email: profile.email,
-        first_name: profile.first_name || "",
-        last_name: profile.last_name || "",
-        role: profile.role || "user",
-        is_active: profile.is_active ?? true,
-        last_login: profile.last_login || null,
-        created_at: profile.created_at || null,
-        source: "supabase_table",
-      };
-
-      setUser(userData);
-      setIsLoggedIn(true);
-      localStorage.setItem("user", JSON.stringify(userData));
-      setEmail("");
-      setPassword("");
-      setJustLoggedIn(true);
-      setShowSuccessModal(true);
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        setJustLoggedIn(false);
-        navigate("/dashboard");
-      }, 2000);
-    } catch (error) {
-      setLoginError(error.message || "Login failed. Please try again.");
-      setErrorMessage(error.message || "Login failed. Please try again.");
-      // If not an explicit suspension, show generic error modal
-      if (!showSuspendedModal) {
-        setShowErrorModal(true);
-        setTimeout(() => setShowErrorModal(false), 2000);
-      }
-    } finally {
-      setLoading(false);
+  try {
+    const { data, error: tableErr } = await ApiService.login(email, password); // ✅ Changed from loginTable to login
+    const profile = data?.user; // ✅ Extract user from data
+    
+    if (tableErr || !profile) {
+      throw new Error("Invalid email or password");
     }
-  };
+
+    // Block login if account is suspended/inactive
+    if (profile.is_active === false) {
+      const msg = "Your account is suspended. Please contact your administrator.";
+      setErrorMessage(msg);
+      setShowSuspendedModal(true);
+      setLoading(false);
+      return;
+    }
+
+    const userData = {
+      id: profile.id,
+      email: profile.email,
+      first_name: profile.first_name || "",
+      last_name: profile.last_name || "",
+      role: profile.role || "user",
+      is_active: profile.is_active ?? true,
+      last_login: profile.last_login || null,
+      created_at: profile.created_at || null,
+      source: "supabase_table",
+    };
+
+    setUser(userData);
+    setIsLoggedIn(true);
+    localStorage.setItem("user", JSON.stringify(userData));
+    setEmail("");
+    setPassword("");
+    setJustLoggedIn(true);
+    setShowSuccessModal(true);
+    setTimeout(() => {
+      setShowSuccessModal(false);
+      setJustLoggedIn(false);
+      navigate("/dashboard");
+    }, 2000);
+  } catch (error) {
+    setLoginError(error.message || "Login failed. Please try again.");
+    setErrorMessage(error.message || "Login failed. Please try again.");
+    // If not an explicit suspension, show generic error modal
+    if (!showSuspendedModal) {
+      setShowErrorModal(true);
+      setTimeout(() => setShowErrorModal(false), 2000);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleLogout = () => {
     ApiService.logout();
