@@ -18,30 +18,42 @@ const RsbsaRecordsPage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingRecord, setViewingRecord] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 30;
+  const itemsPerPage = 10;
 
   // State for database data
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
   // Fetch data on component mount
   useEffect(() => {
     fetchRegistrants();
   }, []);
+
+  // ✅ Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, typeFilter, statusFilter]);
 
   // Fetch function
   const fetchRegistrants = async () => {
     try {
       setLoading(true);
       setError(null);
-      
       const data = await ApiService.getRegistrants();
       console.log('✅ Fetched registrants:', data);
-      
+
       // Transform database data to match UI format
       const formattedRecords = data.map(registrant => ({
         id: registrant.reference_no || `RS-${registrant.id.slice(0, 8)}`,
+        dbId: registrant.id,
         name: [registrant.first_name, registrant.middle_name, registrant.surname]
           .filter(Boolean)
           .join(' '),
@@ -57,8 +69,16 @@ const RsbsaRecordsPage = () => {
         coordinates: 'N/A',
         fullData: registrant
       }));
-      
-      setRecords(formattedRecords);
+
+      // ✅ Remove duplicates based on dbId (unique database ID)
+      const uniqueRecords = formattedRecords.filter((record, index, self) =>
+        index === self.findIndex((r) => r.dbId === record.dbId)
+      );
+
+      console.log('✅ Total records:', formattedRecords.length);
+      console.log('✅ Unique records:', uniqueRecords.length);
+
+      setRecords(uniqueRecords);
     } catch (err) {
       console.error('❌ Error fetching registrants:', err);
       setError(err.message);
@@ -67,7 +87,7 @@ const RsbsaRecordsPage = () => {
     }
   };
 
-  // Helper function - Only show Purok and Barangay
+  // Helper functions
   const formatAddress = (address) => {
     if (!address) return 'N/A';
     return [address.purok, address.barangay]
@@ -102,11 +122,14 @@ const RsbsaRecordsPage = () => {
 
   // Filter records
   const filteredRecords = records.filter(record => {
-    const matchesSearch = record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.address.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesType = typeFilter === 'all' || record.type === typeFilter;
     const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
+
     return matchesSearch && matchesType && matchesStatus;
   });
 
@@ -131,12 +154,48 @@ const RsbsaRecordsPage = () => {
     }
   };
 
-  const handleDeleteRecords = () => {
-    setRecords(records.filter(record => !selectedRecords.includes(record.id)));
-    setSelectedRecords([]);
-    setShowDeleteModal(false);
-    setShowDeleteMode(false);
-    setDeleteReason('');
+  // ✅ FIXED: Delete records with proper checkbox clearing
+  const handleDeleteRecords = async () => {
+    try {
+      setIsDeleting(true);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const ipAddress = await ApiService.getUserIpAddress();
+  
+      const recordsToDelete = records.filter(r => selectedRecords.includes(r.id));
+  
+      for (const record of recordsToDelete) {
+        await ApiService.softDeleteRegistrant(
+          record.dbId,
+          currentUser.id,
+          deleteReason || 'No reason provided'
+        );
+  
+        await ApiService.createActivityLog(
+          currentUser.id,
+          `${currentUser.first_name} ${currentUser.last_name}`,
+          'Delete',
+          `${record.id} (${record.name})`,
+          ipAddress
+        );
+      }
+  
+      setRecords(records.filter(record => !selectedRecords.includes(record.id)));
+      setShowDeleteModal(false);
+      setShowDeleteMode(false);
+      setDeleteReason('');
+      setIsDeleting(false);
+  
+      setSuccessMessage(`Successfully deleted ${recordsToDelete.length} record(s)`);
+      setShowSuccessModal(true);
+  
+    } catch (error) {
+      console.error('Error deleting records:', error);
+      setIsDeleting(false);
+      
+      setErrorMessage(error.message || 'Failed to delete records. Please try again.');
+      setShowErrorModal(true);
+    }
   };
 
   const handleViewRecord = (record) => {
@@ -146,42 +205,54 @@ const RsbsaRecordsPage = () => {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case 'Created': return 'bg-yellow-900/50 text-yellow-300 hover:bg-yellow-900/70';
-      case 'Updating': return 'bg-blue-900/50 text-blue-300 hover:bg-blue-900/70';
-      case 'Updated': return 'bg-green-900/50 text-green-300 hover:bg-green-900/70';
-      default: return 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70';
+      case 'Created':
+        return 'bg-yellow-900/50 text-yellow-300 hover:bg-yellow-900/70';
+      case 'Updating':
+        return 'bg-blue-900/50 text-blue-300 hover:bg-blue-900/70';
+      case 'Updated':
+        return 'bg-green-900/50 text-green-300 hover:bg-green-900/70';
+      default:
+        return 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70';
     }
   };
 
   const getTypeBadgeColor = (type) => {
     switch (type) {
-      case 'Farmer': return 'bg-green-900/50 text-green-300 hover:bg-green-900/70';
-      case 'Fisherfolk': return 'bg-blue-900/50 text-blue-300 hover:bg-blue-900/70';
-      case 'Farm Worker/Laborer': return 'bg-orange-900/50 text-orange-300 hover:bg-orange-900/70';
-      case 'Agri-Youth': return 'bg-red-900/50 text-red-300 hover:bg-red-900/70';
-      default: return 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70';
+      case 'Farmer':
+        return 'bg-green-900/50 text-green-300 hover:bg-green-900/70';
+      case 'Fisherfolk':
+        return 'bg-blue-900/50 text-blue-300 hover:bg-blue-900/70';
+      case 'Farm Worker/Laborer':
+        return 'bg-orange-900/50 text-orange-300 hover:bg-orange-900/70';
+      case 'Agri-Youth':
+        return 'bg-red-900/50 text-red-300 hover:bg-red-900/70';
+      default:
+        return 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70';
     }
   };
 
   const Modal = ({ show, onClose, title, children, size = "md" }) => {
     if (!show) return null;
-
+  
     const sizeClasses = {
       md: "max-w-md",
       lg: "max-w-lg",
       xl: "max-w-2xl"
     };
-
+  
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className={`bg-[#252525] rounded-lg shadow-xl ${sizeClasses[size]} w-full mx-4`}>
-          <div className="flex items-center justify-between p-4 border-b border-[#3B3B3B]">
-            <h3 className="text-lg font-semibold text-gray-200">{title}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-200">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className={`bg-[#252525] border border-[#333333] rounded-lg shadow-xl ${sizeClasses[size]} w-full mx-4 relative`}>
+          <div className="flex items-center justify-between p-4 border-b border-[#333333]">
+            <h3 className="text-lg font-semibold text-white">{title}</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-gray-400 hover:text-white hover:bg-[#333333]"
+            >
+              <i className="fas fa-times"></i>
+            </Button>
           </div>
           <div className="p-4">
             {children}
@@ -191,244 +262,251 @@ const RsbsaRecordsPage = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-screen">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
+          <p className="text-gray-300">Loading records...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center h-screen">
+        <div className="text-center">
+          <i className="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+          <p className="text-red-300 mb-4">{error}</p>
+          <Button onClick={fetchRegistrants} className="bg-blue-600 hover:bg-blue-700">
+            <i className="fas fa-sync mr-2"></i> Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
-      <Card className="bg-[#252525] border-[#3B3B3B]">
-        {/* Header with Title, Search, and Buttons */}
-        <CardHeader className="border-b border-[#3B3B3B]">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-2xl font-bold text-gray-200">RSBSA Records</CardTitle>
-            
-            {/* Search and Action Buttons */}
-            <div className="flex items-center gap-3">
-              <Input
-                placeholder="Search by Name, RSBSA No., or Address..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-80 bg-[#1A1A1A] border-[#3B3B3B] text-gray-200"
-              />
-              <Button
-                onClick={() => setShowFilters(!showFilters)}
-                className="bg-[#3B3B3B] hover:bg-[#4B4B4B] text-gray-200"
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-white">RSBSA Records</h1>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowFilters(!showFilters)}
+            className="bg-[#444444] hover:bg-[#555555] text-white"
+          >
+            <i className="fas fa-filter mr-2"></i> Filters
+          </Button>
+          {!showDeleteMode ? (
+            <Button 
+              onClick={() => setShowDeleteMode(true)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <i className="fas fa-trash mr-2"></i> Delete Records
+            </Button>
+          ) : (
+            <>
+              <Button 
+                onClick={() => setShowDeleteModal(true)}
+                disabled={selectedRecords.length === 0}
+                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
               >
-                <i className="fas fa-filter mr-2"></i>
-                Filters
+                <i className="fas fa-trash mr-2"></i> Delete Selected ({selectedRecords.length})
               </Button>
-              <Button
-                onClick={() => setShowDeleteMode(!showDeleteMode)}
-                className={`${showDeleteMode ? 'bg-red-600 hover:bg-red-700' : 'bg-[#3B3B3B] hover:bg-[#4B4B4B]'} text-gray-200`}
+              <Button 
+                onClick={() => {
+                  setShowDeleteMode(false);
+                  setSelectedRecords([]);
+                }}
+                className="bg-[#444444] hover:bg-[#555555] text-white"
               >
-                <i className="fas fa-trash mr-2"></i>
-                {showDeleteMode ? 'Cancel' : 'Delete'}
+                Cancel
               </Button>
-              <Button
-                onClick={fetchRegistrants}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                title="Refresh"
-              >
-                <i className="fas fa-sync"></i>
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
+            </>
+          )}
+        </div>
+      </div>
 
-        <CardContent className="p-6">
-          
-          {/* Loading State */}
-          {loading && (
-            <div className="flex justify-center items-center py-12">
-              <div className="text-gray-400 text-lg">
-                <i className="fas fa-spinner fa-spin mr-2"></i>
-                Loading records from database...
+      {/* Filters */}
+      {showFilters && (
+        <Card className="bg-[#1e1e1e] border-0">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="w-full bg-[#252525] border border-[#333333] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Types</option>
+                  <option value="Farmer">Farmer</option>
+                  <option value="Fisherfolk">Fisherfolk</option>
+                  <option value="Farm Worker/Laborer">Farm Worker/Laborer</option>
+                  <option value="Agri-Youth">Agri-Youth</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full bg-[#252525] border border-[#333333] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="Created">Created</option>
+                  <option value="Updating">Updating</option>
+                  <option value="Updated">Updated</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  onClick={() => {
+                    setTypeFilter('all');
+                    setStatusFilter('all');
+                  }}
+                  className="w-full bg-[#444444] hover:bg-[#555555] text-white"
+                >
+                  Clear Filters
+                </Button>
               </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Error State */}
-          {error && (
-            <div className="bg-red-600/20 border border-red-600 text-red-400 px-4 py-3 rounded-md mb-4">
-              <i className="fas fa-exclamation-triangle mr-2"></i>
-              Error loading records: {error}
-              <button 
-                onClick={fetchRegistrants}
-                className="ml-4 underline hover:text-red-300"
-              >
-                Retry
-              </button>
-            </div>
-          )}
+      {/* Search */}
+      <Card className="bg-[#1e1e1e] border-0">
+        <CardContent className="p-4">
+          <div className="relative">
+            <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <Input
+              type="text"
+              placeholder="Search by name, ID, or address..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-[#252525] border-[#333333] text-white"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-          {/* Main Content */}
-          {!loading && !error && (
-            <>
-              {/* Filters - Collapsible */}
-              {showFilters && (
-                <div className="bg-[#1A1A1A] border border-[#3B3B3B] rounded-lg p-4 mb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm text-gray-400 mb-2 block">Type</label>
-                      <select
-                        value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value)}
-                        className="w-full bg-[#252525] border border-[#3B3B3B] rounded px-3 py-2 text-gray-200"
-                      >
-                        <option value="all">All Types</option>
-                        <option value="Farmer">Farmer</option>
-                        <option value="Fisherfolk">Fisherfolk</option>
-                        <option value="Agri-Youth">Agri-Youth</option>
-                        <option value="Farm Worker/Laborer">Farm Worker/Laborer</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-400 mb-2 block">Status</label>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full bg-[#252525] border border-[#3B3B3B] rounded px-3 py-2 text-gray-200"
-                      >
-                        <option value="all">All Status</option>
-                        <option value="Created">Created</option>
-                        <option value="Updating">Updating</option>
-                        <option value="Updated">Updated</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Delete Mode Actions */}
-              {showDeleteMode && selectedRecords.length > 0 && (
-                <div className="bg-red-900/20 border border-red-600 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-red-400">
-                      {selectedRecords.length} record(s) selected
-                    </span>
-                    <Button
-                      onClick={() => setShowDeleteModal(true)}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <i className="fas fa-trash mr-2"></i>
-                      Delete Selected
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Records Table with Bold Headers and Thicker Border */}
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-3 border-[#FFFFFF]">
+      {/* Table */}
+      <Card className="bg-[#1e1e1e] border-0">
+        <CardHeader>
+          <CardTitle className="text-white">Registrant Records</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-[#252525]">
+                <TableRow>
+                  {showDeleteMode && (
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        onChange={handleSelectAll}
+                        checked={selectedRecords.length === paginatedRecords.length && paginatedRecords.length > 0}
+                        className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500"
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead className="text-gray-300">Reference ID</TableHead>
+                  <TableHead className="text-gray-300">Name</TableHead>
+                  <TableHead className="text-gray-300">Address</TableHead>
+                  <TableHead className="text-gray-300">Type</TableHead>
+                  <TableHead className="text-gray-300">Phone</TableHead>
+                  <TableHead className="text-gray-300">Registered On</TableHead>
+                  <TableHead className="text-gray-300">Status</TableHead>
+                  <TableHead className="text-gray-300 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedRecords.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={showDeleteMode ? 9 : 8} className="text-center text-gray-400 py-8">
+                      No records found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedRecords.map((record) => (
+                    <TableRow key={record.dbId} className="border-t border-[#333333] hover:bg-[#252525]">
                       {showDeleteMode && (
-                        <TableHead className="text-gray-400 font-bold">
+                        <TableCell>
                           <input
                             type="checkbox"
-                            onChange={handleSelectAll}
-                            checked={selectedRecords.length === paginatedRecords.length && paginatedRecords.length > 0}
-                            className="w-4 h-4"
+                            checked={selectedRecords.includes(record.id)}
+                            onChange={() => handleSelectRecord(record.id)}
+                            className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500"
                           />
-                        </TableHead>
+                        </TableCell>
                       )}
-                      <TableHead className="text-gray-200 font-bold">RSBSA No.</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Name</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Address</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Type</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Registered On</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Modified On</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Modified By</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Status</TableHead>
-                      <TableHead className="text-gray-200 font-bold">Actions</TableHead>
+                      <TableCell className="text-gray-400 font-mono text-sm">{record.id}</TableCell>
+                      <TableCell className="text-gray-200">{record.name}</TableCell>
+                      <TableCell className="text-gray-400 text-sm">{record.address}</TableCell>
+                      <TableCell>
+                        <Badge className={getTypeBadgeColor(record.type)}>
+                          {record.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-gray-400 text-sm">{record.phone}</TableCell>
+                      <TableCell className="text-gray-400 text-sm">{record.registeredOn}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusBadgeColor(record.status)}>
+                          {record.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewRecord(record)}
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                        >
+                          <i className="fas fa-eye mr-1"></i> View
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedRecords.map((record) => (
-                      <TableRow 
-                        key={record.id} 
-                        className="border-[#3B3B3B] hover:bg-white/5 transition-colors duration-150"
-                      >
-                        {showDeleteMode && (
-                          <TableCell>
-                            <input
-                              type="checkbox"
-                              checked={selectedRecords.includes(record.id)}
-                              onChange={() => handleSelectRecord(record.id)}
-                              className="w-4 h-4"
-                            />
-                          </TableCell>
-                        )}
-                        <TableCell className="text-gray-300 font-mono text-sm">{record.id}</TableCell>
-                        <TableCell className="text-gray-200 font-medium">{record.name}</TableCell>
-                        <TableCell className="text-gray-400 text-sm">{record.address}</TableCell>
-                        <TableCell>
-                          <Badge className={getTypeBadgeColor(record.type)}>
-                            {record.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-gray-400 text-sm">{record.registeredOn}</TableCell>
-                        <TableCell className="text-gray-400 text-sm">{record.modifiedOn}</TableCell>
-                        <TableCell className="text-gray-400 text-sm">{record.modifiedBy}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadgeColor(record.status)}>
-                            {record.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleViewRecord(record)}
-                              className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-1 text-sm"
-                            >
-                              <i className="fas fa-eye mr-1"></i>
-                              View
-                            </Button>
-                            <Button
-                              className="bg-green-600/20 hover:bg-green-600/30 text-green-400 px-3 py-1 text-sm"
-                            >
-                              <i className="fas fa-edit mr-1"></i>
-                              Edit
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <div className="text-sm text-gray-400">
-                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredRecords.length)} of {filteredRecords.length} records
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="bg-[#3B3B3B] hover:bg-[#4B4B4B] text-gray-200 disabled:opacity-50"
-                    >
-                      <i className="fas fa-chevron-left"></i>
-                    </Button>
-                    {[...Array(totalPages)].map((_, i) => (
-                      <Button
-                        key={i + 1}
-                        onClick={() => setCurrentPage(i + 1)}
-                        className={`${currentPage === i + 1 ? 'bg-blue-600 text-white' : 'bg-[#3B3B3B] text-gray-200'} hover:bg-blue-700`}
-                      >
-                        {i + 1}
-                      </Button>
-                    ))}
-                    <Button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="bg-[#3B3B3B] hover:bg-[#4B4B4B] text-gray-200 disabled:opacity-50"
-                    >
-                      <i className="fas fa-chevron-right"></i>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#333333]">
+              <p className="text-sm text-gray-400">
+                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredRecords.length)} of {filteredRecords.length} records
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 disabled:opacity-50"
+                >
+                  <i className="fas fa-chevron-left"></i>
+                </Button>
+                <span className="px-4 py-2 text-gray-300">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 disabled:opacity-50"
+                >
+                  <i className="fas fa-chevron-right"></i>
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -436,43 +514,81 @@ const RsbsaRecordsPage = () => {
       {/* Delete Confirmation Modal */}
       <Modal
         show={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="Confirm Delete"
+        onClose={() => {
+          if (!isDeleting) {
+            setShowDeleteModal(false);
+          }
+        }}
+        title="Confirm Deletion"
+        size="md"
       >
         <div className="space-y-4">
-          <p className="text-gray-300">
-            Are you sure you want to delete {selectedRecords.length} selected record(s)? This action cannot be undone.
-          </p>
+          {isDeleting && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+              <div className="text-center">
+                <i className="fas fa-spinner fa-spin text-4xl text-white mb-3"></i>
+                <p className="text-white font-medium">Deleting records...</p>
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-4">
+            <p className="text-red-300">
+              <i className="fas fa-exclamation-triangle mr-2"></i>
+              Are you sure you want to delete {selectedRecords.length} selected record(s)? 
+              This will move them to the deleted records section.
+            </p>
+          </div>
+          
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Reason for deletion:</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Reason for Deletion (Optional)
+            </label>
             <textarea
+              placeholder="Enter reason for deletion..."
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}
-              className="w-full bg-[#1A1A1A] border border-[#3B3B3B] rounded px-3 py-2 text-gray-200"
-              rows="3"
-              placeholder="Enter reason..."
+              rows={3}
+              className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-y-auto"
+              style={{ height: '120px', resize: 'vertical' }}
+              disabled={isDeleting}
+              autoFocus
             />
           </div>
+
           <div className="flex gap-2 justify-end">
             <Button
-              onClick={() => setShowDeleteModal(false)}
-              className="bg-[#3B3B3B] hover:bg-[#4B4B4B] text-gray-200"
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteReason('');
+              }}
+              className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+              disabled={isDeleting}
             >
               Cancel
             </Button>
             <Button
               onClick={handleDeleteRecords}
-              disabled={!deleteReason.trim()}
               className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2"></i> Deleting...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-trash mr-2"></i> Delete
+                </>
+              )}
             </Button>
           </div>
         </div>
       </Modal>
 
       {/* View Record Modal */}
-      {viewingRecord && (
+      {showViewModal && viewingRecord && (
         <Modal
           show={showViewModal}
           onClose={() => setShowViewModal(false)}
@@ -482,53 +598,113 @@ const RsbsaRecordsPage = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-400">RSBSA No.</label>
-                <p className="text-gray-200 font-mono">{viewingRecord.id}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Name</label>
-                <p className="text-gray-200">{viewingRecord.name}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Address</label>
-                <p className="text-gray-200">{viewingRecord.address}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Phone</label>
-                <p className="text-gray-200">{viewingRecord.phone}</p>
+                <label className="text-sm text-gray-400">Reference ID</label>
+                <p className="text-white font-mono">{viewingRecord.id}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-400">Type</label>
-                <Badge className={getTypeBadgeColor(viewingRecord.type)}>{viewingRecord.type}</Badge>
+                <p><Badge className={getTypeBadgeColor(viewingRecord.type)}>{viewingRecord.type}</Badge></p>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-400">Full Name</label>
+                <p className="text-white">{viewingRecord.name}</p>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-400">Address</label>
+                <p className="text-white">{viewingRecord.address}</p>
               </div>
               <div>
-                <label className="text-sm text-gray-400">Status</label>
-                <Badge className={getStatusBadgeColor(viewingRecord.status)}>{viewingRecord.status}</Badge>
+                <label className="text-sm text-gray-400">Phone</label>
+                <p className="text-white">{viewingRecord.phone}</p>
               </div>
-              {viewingRecord.crops && viewingRecord.crops !== 'N/A' && (
-                <div>
-                  <label className="text-sm text-gray-400">Crops</label>
-                  <p className="text-gray-200">{viewingRecord.crops}</p>
-                </div>
-              )}
-              {viewingRecord.farmSize && viewingRecord.farmSize !== 'N/A' && (
-                <div>
-                  <label className="text-sm text-gray-400">Farm Size</label>
-                  <p className="text-gray-200">{viewingRecord.farmSize}</p>
-                </div>
-              )}
+              <div>
+                <label className="text-sm text-gray-400">Farm Size</label>
+                <p className="text-white">{viewingRecord.farmSize}</p>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-400">Crops</label>
+                <p className="text-white">{viewingRecord.crops}</p>
+              </div>
               <div>
                 <label className="text-sm text-gray-400">Registered On</label>
-                <p className="text-gray-200">{viewingRecord.registeredOn}</p>
+                <p className="text-white">{viewingRecord.registeredOn}</p>
               </div>
               <div>
-                <label className="text-sm text-gray-400">Modified On</label>
-                <p className="text-gray-200">{viewingRecord.modifiedOn}</p>
+                <label className="text-sm text-gray-400">Last Modified</label>
+                <p className="text-white">{viewingRecord.modifiedOn}</p>
               </div>
+            </div>
+            <div className="flex justify-end pt-4 border-t border-[#333333]">
+              <Button
+                onClick={() => setShowViewModal(false)}
+                className="bg-[#444444] hover:bg-[#555555] text-white"
+              >
+                Close
+              </Button>
             </div>
           </div>
         </Modal>
       )}
+
+      {/* Success Modal */}
+      <Modal
+        show={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          setSelectedRecords([]);
+        }}
+        title="Success"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-center">
+            <div className="w-16 h-16 bg-green-900/20 rounded-full flex items-center justify-center">
+              <i className="fas fa-check-circle text-4xl text-green-400"></i>
+            </div>
+          </div>
+          <p className="text-center text-gray-300 text-lg">
+            {successMessage}
+          </p>
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={() => {
+                setShowSuccessModal(false);
+                setSelectedRecords([]);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              OK
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        show={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Error"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-center">
+            <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center">
+              <i className="fas fa-exclamation-circle text-4xl text-red-400"></i>
+            </div>
+          </div>
+          <p className="text-center text-gray-300 text-lg">
+            {errorMessage}
+          </p>
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={() => setShowErrorModal(false)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              OK
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import ClientOnly from './ClientOnly';
 import PolygonMap from './PolygonMap';
+import { supabase } from '../services/api'; // ✅ Import supabase directly
 
 const MapPage = () => {
   const [selectedPurok, setSelectedPurok] = useState('No Polygon Clicked');
@@ -18,91 +19,161 @@ const MapPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomedFarmerId, setZoomedFarmerId] = useState(null);
+  const [purokData, setPurokData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data for all puroks
-  const purokData = {
-    // Barangay Lower Jasaan (Left side)
-    'Purok 1, Lower Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0001', name: 'Juan Dela Cruz', type: 'Farmer', size: '2.5 ha', crops: ['Rice', 'Corn'], contact: '09123456789', address: 'Purok 1, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-01-15', status: 'Active', coordinates: '8.3644° N, 124.6319° E' },
-        { id: 'RS-2025-0002', name: 'Maria Santos', type: 'Farmer', size: '1.8 ha', crops: ['Coconut', 'Banana'], contact: '09234567890', address: 'Purok 1, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-02-03', status: 'Active', coordinates: '8.3650° N, 124.6325° E' }
-      ]
-    },
-    'Purok 2, Lower Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0003', name: 'Pedro Reyes', type: 'Fisherfolk', size: 'N/A', crops: ['Fish Catch'], contact: '09345678901', address: 'Purok 2, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-01-28', status: 'Active', coordinates: '8.3635° N, 124.6330° E' },
-        { id: 'RS-2025-0004', name: 'Ana Lim', type: 'Fisherfolk', size: 'N/A', crops: ['Fish Catch', 'Seaweed'], contact: '09456789012', address: 'Purok 2, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-02-10', status: 'Active', coordinates: '8.3620° N, 124.6280° E' },
-        { id: 'RS-2025-0005', name: 'Roberto Cruz', type: 'Farmer', size: '2.1 ha', crops: ['Rice', 'Fruit Trees'], contact: '09567890123', address: 'Purok 2, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-01-20', status: 'Active', coordinates: '8.3615° N, 124.6275° E' }
-      ]
-    },
-    'Purok 3, Lower Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0006', name: 'Elena Rodriguez', type: 'Fisherfolk', size: 'N/A', crops: ['Fish Catch'], contact: '09678901234', address: 'Purok 3, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-02-05', status: 'Active', coordinates: '8.3610° N, 124.6270° E' },
-        { id: 'RS-2025-0007', name: 'Miguel Torres', type: 'Farmer', size: '1.5 ha', crops: ['Corn', 'Cassava'], contact: '09789012345', address: 'Purok 3, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-01-25', status: 'Active', coordinates: '8.3605° N, 124.6265° E' }
-      ]
-    },
-    'Purok 4, Lower Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0008', name: 'Carmen Dela Cruz', type: 'Farmer', size: '3.0 ha', crops: ['Rice', 'Vegetables'], contact: '09890123456', address: 'Purok 4, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-02-12', status: 'Active', coordinates: '8.3600° N, 124.6260° E' }
-      ]
-    },
-    'Purok 10, Lower Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0009', name: 'Diego Santos', type: 'Fisherfolk', size: 'N/A', crops: ['Fish Catch', 'Crab'], contact: '09901234567', address: 'Purok 10, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-01-18', status: 'Active', coordinates: '8.3595° N, 124.6255° E' },
-        { id: 'RS-2025-0010', name: 'Sofia Martinez', type: 'Farmer', size: '2.3 ha', crops: ['Coconut', 'Banana'], contact: '09012345678', address: 'Purok 10, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-02-08', status: 'Active', coordinates: '8.3590° N, 124.6250° E' }
-      ]
-    },
-    'Purok 11, Lower Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0011', name: 'Antonio Garcia', type: 'Farmer', size: '1.9 ha', crops: ['Rice', 'Corn'], contact: '09123456780', address: 'Purok 11, Lower Jasaan, Misamis Oriental', dateRegistered: '2025-01-30', status: 'Active', coordinates: '8.3585° N, 124.6245° E' }
-      ]
-    },
-    // Barangay Upper Jasaan (Right side)
-    'Purok 5, Upper Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0012', name: 'Isabella Cruz', type: 'Farmer', size: '2.8 ha', crops: ['Rice', 'Vegetables'], contact: '09234567801', address: 'Purok 5, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-02-01', status: 'Active', coordinates: '8.3680° N, 124.6380° E' },
-        { id: 'RS-2025-0013', name: 'Fernando Reyes', type: 'Farmer', size: '3.5 ha', crops: ['Corn', 'Cassava'], contact: '09345678902', address: 'Purok 5, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-01-22', status: 'Active', coordinates: '8.3685° N, 124.6385° E' }
-      ]
-    },
-    'Purok 6, Upper Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0014', name: 'Lucia Torres', type: 'Farmer', size: '2.2 ha', crops: ['Rice', 'Fruit Trees'], contact: '09456789013', address: 'Purok 6, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-02-15', status: 'Active', coordinates: '8.3690° N, 124.6390° E' },
-        { id: 'RS-2025-0015', name: 'Manuel Lopez', type: 'Farmer', size: '1.7 ha', crops: ['Coconut', 'Banana'], contact: '09567890124', address: 'Purok 6, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-01-12', status: 'Active', coordinates: '8.3695° N, 124.6395° E' },
-        { id: 'RS-2025-0016', name: 'Rosa Villanueva', type: 'Farmer', size: '2.9 ha', crops: ['Rice', 'Vegetables'], contact: '09678901235', address: 'Purok 6, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-02-20', status: 'Active', coordinates: '8.3700° N, 124.6400° E' }
-      ]
-    },
-    'Purok 7, Upper Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0017', name: 'Carlos Morales', type: 'Farmer', size: '4.1 ha', crops: ['Rice', 'Corn'], contact: '09789012346', address: 'Purok 7, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-01-08', status: 'Active', coordinates: '8.3705° N, 124.6405° E' },
-        { id: 'RS-2025-0018', name: 'Patricia Silva', type: 'Farmer', size: '1.6 ha', crops: ['Vegetables', 'Herbs'], contact: '09890123457', address: 'Purok 7, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-02-18', status: 'Active', coordinates: '8.3710° N, 124.6410° E' }
-      ]
-    },
-    'Purok 8, Upper Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0019', name: 'Eduardo Ramos', type: 'Farmer', size: '3.3 ha', crops: ['Rice', 'Coconut'], contact: '09901234568', address: 'Purok 8, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-01-05', status: 'Active', coordinates: '8.3715° N, 124.6415° E' },
-        { id: 'RS-2025-0020', name: 'Gloria Mendoza', type: 'Farmer', size: '2.0 ha', crops: ['Corn', 'Root Crops'], contact: '09012345679', address: 'Purok 8, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-02-25', status: 'Active', coordinates: '8.3720° N, 124.6420° E' },
-        { id: 'RS-2025-0021', name: 'Raul Fernandez', type: 'Farmer', size: '2.7 ha', crops: ['Rice', 'Fruit Trees'], contact: '09123456781', address: 'Purok 8, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-01-27', status: 'Active', coordinates: '8.3725° N, 124.6425° E' }
-      ]
-    },
-    'Purok 9, Upper Jasaan': {
-      farmers: [
-        { id: 'RS-2025-0022', name: 'Valentina Cortez', type: 'Farmer', size: '1.4 ha', crops: ['Vegetables', 'Spices'], contact: '09234567802', address: 'Purok 9, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-02-28', status: 'Active', coordinates: '8.3730° N, 124.6430° E' },
-        { id: 'RS-2025-0023', name: 'Alejandro Jimenez', type: 'Farmer', size: '3.8 ha', crops: ['Rice', 'Corn'], contact: '09345678903', address: 'Purok 9, Upper Jasaan, Misamis Oriental', dateRegistered: '2025-01-10', status: 'Active', coordinates: '8.3735° N, 124.6435° E' }
-      ]
+  useEffect(() => {
+    fetchRegistrantsData();
+  }, []);
+
+  const fetchRegistrantsData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+  
+      // ✅ Fetch only non-deleted registrants with all related data
+      const { data: registrants, error: regError } = await supabase
+        .from('registrants')
+        .select(`
+          id,
+          reference_no,
+          registry,
+          surname,
+          first_name,
+          middle_name,
+          mobile_number,
+          created_at,
+          addresses (
+            barangay,
+            purok,
+            street,
+            municipality_city,
+            province
+          ),
+          crops (
+            name
+          ),
+          livestock (
+            animal,
+            head_count
+          ),
+          poultry (
+            bird,
+            head_count
+          ),
+          fishing_activities (
+            activity
+          ),
+          farm_parcels (
+            total_farm_area_ha
+          )
+        `)
+        .is('deleted_at', null); // ✅ Only get non-deleted records
+  
+      if (regError) {
+        console.error('Supabase error:', regError);
+        throw regError;
+      }
+  
+      console.log('✅ Fetched registrants:', registrants);
+  
+      // Transform data by purok
+      const transformedData = {};
+  
+      registrants?.forEach(registrant => {
+        const address = registrant.addresses?.[0];
+        if (!address || !address.purok || !address.barangay) {
+          console.warn('⚠️ Skipping registrant without address:', registrant);
+          return;
+        }
+  
+        const barangay = address.barangay;
+        const purok = address.purok;
+        const key = `${purok}, ${barangay}`;
+  
+        // Initialize purok if it doesn't exist
+        if (!transformedData[key]) {
+          transformedData[key] = {
+            barangay,
+            purok,
+            farmers: []
+          };
+        }
+  
+        // Determine crops or activities based on registry type
+        let cropsOrActivities = [];
+        if (registrant.registry === 'farmer') {
+          cropsOrActivities = registrant.crops?.map(c => c.name) || [];
+        } else if (registrant.registry === 'fisherfolk') {
+          cropsOrActivities = registrant.fishing_activities?.map(f => f.activity) || [];
+        }
+  
+        // Calculate farm size
+        const farmSize = registrant.farm_parcels?.[0]?.total_farm_area_ha
+          ? `${registrant.farm_parcels[0].total_farm_area_ha} ha`
+          : 'N/A';
+  
+        // Format registry type for display
+        const formatRegistryType = (registry) => {
+          const types = {
+            'farmer': 'Farmer',
+            'fisherfolk': 'Fisherfolk',
+            'agri_youth': 'Agri-Youth',
+            'farm_worker': 'Farm Worker/Laborer'
+          };
+          return types[registry] || registry;
+        };
+  
+        // Add registrant to purok
+        transformedData[key].farmers.push({
+          id: registrant.reference_no || registrant.id,
+          name: `${registrant.first_name} ${registrant.middle_name || ''} ${registrant.surname}`.trim(),
+          type: formatRegistryType(registrant.registry),
+          size: registrant.registry === 'farmer' ? farmSize : 'N/A',
+          crops: cropsOrActivities.length > 0 ? cropsOrActivities : ['N/A'],
+          contact: registrant.mobile_number || 'N/A',
+          address: `${purok}, ${barangay}, ${address.municipality_city}, ${address.province}`,
+          dateRegistered: new Date(registrant.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }),
+          status: 'Active',
+          coordinates: 'N/A',
+          fullData: registrant
+        });
+      });
+  
+      console.log('✅ Transformed purokData:', transformedData);
+      console.log(`✅ Total puroks: ${Object.keys(transformedData).length}`);
+      console.log(`✅ Total registrants: ${registrants?.length || 0}`);
+  
+      setPurokData(transformedData);
+  
+    } catch (err) {
+      console.error('❌ Error fetching registrants:', err);
+      setError(err.message || 'Failed to load registrants data');
+    } finally {
+      setLoading(false);
     }
   };
+  
 
-  // Handler for polygon clicks from PolygonMap
+  // ... rest of your component code stays the same
+
+
   const handlePolygonClick = (purokName) => {
     setSelectedPurok(purokName);
     setIsZoomed(true);
-    // Reset filter when changing purok
+    setZoomedFarmerId(null);
     setFilterType('all');
   };
 
-  // Handler to exit zoom mode
   const handleExitZoom = () => {
     setIsZoomed(false);
+    setZoomedFarmerId(null);
   };
 
   const currentData = purokData[selectedPurok] || { farmers: [] };
@@ -115,6 +186,17 @@ const MapPage = () => {
     setShowViewModal(true);
   };
 
+  const handleViewOnMap = () => {
+    if (selectedFarmer && selectedFarmer.type === 'Farmer') {
+      setShowViewModal(false);
+      setZoomedFarmerId(selectedFarmer.id);
+      setIsZoomed(true);
+      setTimeout(() => {
+        document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  };
+
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
@@ -125,6 +207,7 @@ const MapPage = () => {
       alert(`Importing ${selectedFile.name}...`);
       setShowImportModal(false);
       setSelectedFile(null);
+      fetchRegistrantsData();
     }
   };
 
@@ -133,39 +216,67 @@ const MapPage = () => {
     setShowExportModal(false);
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-screen">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
+          <p className="text-gray-300">Loading registrants data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center h-screen">
+        <div className="text-center">
+          <i className="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+          <p className="text-red-300 mb-4">{error}</p>
+          <Button onClick={fetchRegistrantsData} className="bg-blue-600 hover:bg-blue-700">
+            <i className="fas fa-sync mr-2"></i> Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
-      {/* Map Tab */}
+
       {activeTab === 'map' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-          {/* Left Column – Map */}
-          <Card className="bg-[#1e1e1e] border-0 shadow-md h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
+          <Card className="bg-[#1e1e1e] border-0 shadow-md h-full map-container">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white text-xl">GIS Map</CardTitle>
-              
+              <CardTitle className="text-white text-xl">GIS Map - Jasaan, Misamis Oriental</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="relative h-[600px] w-full rounded-b-md overflow-hidden z-0">
                 <ClientOnly>
-                  <PolygonMap 
+                  <PolygonMap
                     onPolygonClick={handlePolygonClick}
                     selectedPurok={selectedPurok}
                     isZoomed={isZoomed}
                     onExitZoom={handleExitZoom}
+                    zoomedFarmerId={zoomedFarmerId}
                   />
                 </ClientOnly>
-                {/* Optional: overlay, but allow map clicks */}
-                <div className="absolute inset-0 bg-[#121212]/20 pointer-events-none" />
+
+                {isZoomed && (
+                  <div className="absolute top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-md text-sm z-10">
+                    <i className="fas fa-info-circle mr-2"></i>
+                    Click the <strong>Exit Zoom</strong> button to return to full map view
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Right Column – Display Data */}
           <Card className="bg-[#1e1e1e] border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-white text-lg">Display Data</CardTitle>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setShowFilterModal(true)}
                 className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
@@ -175,92 +286,103 @@ const MapPage = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                <h3 className="text-white font-medium">
-                  {isZoomed && selectedPurok ? selectedPurok : ""}
-                </h3>
-
-                {isZoomed ? (
-                  <Badge className="bg-orange-900/50 text-orange-300 text-xs">
-                    <i className="fas fa-search-plus mr-1"></i>
-                    Zoomed
-                  </Badge>
-                ) : (
-                  <Badge className="bg-gray-800/50 text-gray-400 text-xs">
-                    <i className="fas fa-search-minus mr-1"></i>
-                    Not Zoomed
-                  </Badge>
-                )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-white font-medium">
+                      {isZoomed ? selectedPurok : 'Click a polygon to view data'}
+                    </h3>
+                    {isZoomed ? (
+                      <Badge className="bg-orange-900/50 text-orange-300 text-xs">
+                        <i className="fas fa-search-plus mr-1"></i> Zoomed
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-gray-800/50 text-gray-400 text-xs">
+                        <i className="fas fa-search-minus mr-1"></i> Not Zoomed
+                      </Badge>
+                    )}
+                  </div>
+                  {selectedPurok && selectedPurok !== 'No Polygon Clicked' ? (
+                    <Badge
+                      className={
+                        !isZoomed
+                          ? 'bg-gray-900/50 text-gray-400'
+                          : filteredFarmers.some((f) => f.type === 'Farmer') &&
+                            filteredFarmers.some((f) => f.type === 'Fisherfolk')
+                          ? 'bg-purple-900/50 text-purple-300'
+                          : filteredFarmers.some((f) => f.type === 'Fisherfolk')
+                          ? 'bg-blue-900/50 text-blue-300'
+                          : 'bg-green-900/50 text-green-300'
+                      }
+                    >
+                      {isZoomed
+                        ? `${filteredFarmers.length} ${
+                            filteredFarmers.length === 1 ? 'Registrant' : 'Registrants'
+                          }`
+                        : '0 Registrants'}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-gray-900/50 text-gray-400">No Data</Badge>
+                  )}
                 </div>
 
-                {selectedPurok ? (
-                  <Badge className={
-                    !isZoomed
-                      ? "bg-gray-900/50 text-gray-400"
-                      : filteredFarmers.some(f => f.type === 'Farmer') && filteredFarmers.some(f => f.type === 'Fisherfolk')
-                        ? "bg-purple-900/50 text-purple-300"
-                        : filteredFarmers.some(f => f.type === 'Fisherfolk')
-                        ? "bg-blue-900/50 text-blue-300"
-                        : "bg-green-900/50 text-green-300"
-                  }>
-                    {isZoomed ? (
-                      <>
-                        {filteredFarmers.length} {filteredFarmers.length === 1 ? 'Registrant' : 'Registrants'}
-                      </>
-                    ) : (
-                      "0 Registrants"
-                    )}
-                  </Badge>                  
-                ) : (
-                  <Badge className="bg-gray-900/50 text-gray-400">No Data</Badge>
-                )}
-              </div>
-
-
-                {isZoomed && (
-                  <div className="bg-[#252525] border border-[#333333] rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-orange-300">
-                        <i className="fas fa-map-pin"></i>
-                        <span className="text-sm font-medium">Focused on {selectedPurok}</span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={handleExitZoom}
-                        className="text-gray-400 hover:text-white hover:bg-[#333333] h-6 px-2"
-                      >
-                        <i className="fas fa-times text-xs"></i>
-                      </Button>
-                    </div>
-                    <p className="text-gray-400 text-xs mt-1">Click the X button to return to full map view</p>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={filterType === 'all' ? 'default' : 'outline'}
+                    onClick={() => setFilterType('all')}
+                    className={filterType === 'all' 
+                      ? 'bg-[#444444] text-white hover:bg-[#555555]' 
+                      : 'border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300'}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={filterType === 'farmer' ? 'default' : 'outline'}
+                    onClick={() => setFilterType('farmer')}
+                    className={filterType === 'farmer' 
+                      ? 'bg-green-700 text-white hover:bg-green-800' 
+                      : 'border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300'}
+                  >
+                    Farmers
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={filterType === 'fisherfolk' ? 'default' : 'outline'}
+                    onClick={() => setFilterType('fisherfolk')}
+                    className={filterType === 'fisherfolk' 
+                      ? 'bg-blue-700 text-white hover:bg-blue-800' 
+                      : 'border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300'}
+                  >
+                    Fisherfolk
+                  </Button>
+                </div>
 
                 <div className="border-t border-[#333333] pt-4 mt-4">
-                  <h4 className="text-gray-300 font-medium mb-3">Registered {filterType === 'all' ? 'Farmers & Fisherfolk' : filterType === 'farmer' ? 'Farmers' : 'Fisherfolk'}</h4>
+                  <h4 className="text-gray-300 font-medium mb-3">
+                    Registered {filterType === 'all' ? 'Farmers & Fisherfolk' : filterType === 'farmer' ? 'Farmers' : 'Fisherfolk'}
+                  </h4>
                   <div className="rounded-md border border-[#333333] overflow-hidden">
                     <Table>
                       <TableHeader className="bg-[#252525]">
                         <TableRow>
-                          <TableHead className="text-gray-300 w-[100px]">RSBSA No.</TableHead>
+                          <TableHead className="text-gray-300 w-[120px]">RSBSA No.</TableHead>
                           <TableHead className="text-gray-300">Name</TableHead>
                           <TableHead className="text-gray-300">Type</TableHead>
                           <TableHead className="text-gray-300 text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {!isZoomed ? (
+                        {!isZoomed || selectedPurok === 'No Polygon Clicked' ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                            <TableCell colSpan={4} className="text-center text-gray-400 py-8">
                               <i className="fas fa-mouse-pointer mr-2"></i>
-                              Click a Polygon First to Display Data on this Table
+                              Click a Polygon First to Display Data on this Table...
                             </TableCell>
                           </TableRow>
                         ) : filteredFarmers.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                            <TableCell colSpan={4} className="text-center text-gray-400 py-8">
                               <i className="fas fa-info-circle mr-2"></i>
                               No registrants found for {selectedPurok}
                             </TableCell>
@@ -273,18 +395,20 @@ const MapPage = () => {
                                 <div className="font-medium text-gray-200">{farmer.name}</div>
                               </TableCell>
                               <TableCell>
-                                <Badge className={
-                                  farmer.type === 'Farmer' 
-                                    ? 'bg-green-900/50 text-green-300' 
-                                    : 'bg-blue-900/50 text-blue-300'
-                                }>
+                                <Badge
+                                  className={
+                                    farmer.type === 'Farmer'
+                                      ? 'bg-green-900/50 text-green-300'
+                                      : 'bg-blue-900/50 text-blue-300'
+                                  }
+                                >
                                   {farmer.type}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => handleViewFarmer(farmer)}
                                   className="h-8 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button whitespace-nowrap"
                                 >
@@ -304,309 +428,322 @@ const MapPage = () => {
         </div>
       )}
 
-      {/* Import/Export Tab */}
-      {activeTab === 'import-export' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Import Section */}
-          <Card className="bg-[#1e1e1e] border-0 shadow-md col-span-2">
-            <CardHeader>
-              <CardTitle className="text-white text-xl">
-                <i className="fas fa-upload mr-2"></i>
-                Import CSV/XLSX
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Import CSV or XLSX files for bulk migration and store to database
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="border-2 border-dashed border-[#333333] rounded-lg p-8 text-center hover:border-[#444444] transition-colors">
-                    <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
-                    <p className="text-gray-300 mb-2">Drag & drop your files here</p>
-                    <p className="text-gray-500 text-sm mb-4">or</p>
-                    <Button 
-                      variant="outline"
-                      onClick={() => document.getElementById('file-upload').click()}
-                      className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
-                    >
-                      Browse Files
-                    </Button>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    {selectedFile && (
-                      <div className="mt-4 p-3 bg-[#252525] rounded border border-[#333333]">
-                        <p className="text-green-300 text-sm">
-                          <i className="fas fa-file mr-2"></i>
-                          {selectedFile.name}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-white font-medium">Import Instructions:</h4>
-                  <ul className="text-gray-300 text-sm space-y-2">
-                    <li><i className="fas fa-check text-green-400 mr-2"></i>Supported formats: CSV, XLSX, XLS</li>
-                    <li><i className="fas fa-check text-green-400 mr-2"></i>Maximum file size: 10MB</li>
-                    <li><i className="fas fa-check text-green-400 mr-2"></i>Required columns: RSBSA No., Name, Type</li>
-                    <li><i className="fas fa-check text-green-400 mr-2"></i>Data will be validated before import</li>
-                  </ul>
-                  <Button 
-                    onClick={() => setShowImportModal(true)}
-                    disabled={!selectedFile}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                  >
-                    <i className="fas fa-upload mr-2"></i>
-                    Import Data
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Export CSV/XLSX */}
-          <Card className="bg-[#1e1e1e] border-0 shadow-md">
-            <CardHeader>
-              <CardTitle className="text-white text-lg">
-                <i className="fas fa-download mr-2"></i>
-                Export as CSV/XLSX
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Export database backup in formatted structure
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-[#252525] rounded border border-[#333333]">
-                  <div>
-                    <p className="text-white font-medium">All Registry Data</p>
-                    <p className="text-gray-400 text-sm">Complete database export</p>
-                  </div>
-                  <Badge className="bg-blue-900/50 text-blue-300">1,234 records</Badge>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Button 
-                  onClick={() => handleExport('CSV')}
-                  variant="outline"
-                  className="flex-1 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
-                >
-                  <i className="fas fa-file-csv mr-2"></i>
-                  Export CSV
-                </Button>
-                <Button 
-                  onClick={() => handleExport('XLSX')}
-                  variant="outline"
-                  className="flex-1 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
-                >
-                  <i className="fas fa-file-excel mr-2"></i>
-                  Export XLSX
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Export PDF */}
-          <Card className="bg-[#1e1e1e] border-0 shadow-md">
-            <CardHeader>
-              <CardTitle className="text-white text-lg">
-                <i className="fas fa-file-pdf mr-2"></i>
-                Export as PDF
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Export dashboard summary with KPIs, charts, and tables
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="p-3 bg-[#252525] rounded border border-[#333333]">
-                  <p className="text-white font-medium">Dashboard Summary</p>
-                  <p className="text-gray-400 text-sm">KPIs, Metrics, Charts & Graphs</p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => handleExport('PDF')}
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-              >
-                <i className="fas fa-file-pdf mr-2"></i>
-                Generate PDF Report
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+      {activeTab === 'table' && (
+        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+          <CardHeader>
+            <CardTitle className="text-white">All Registrants</CardTitle>
+            <CardDescription className="text-gray-400">
+              Complete list of all farmers and fisherfolk
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border border-[#333333] overflow-hidden">
+              <Table>
+                <TableHeader className="bg-[#252525]">
+                  <TableRow>
+                    <TableHead className="text-gray-300">RSBSA No.</TableHead>
+                    <TableHead className="text-gray-300">Name</TableHead>
+                    <TableHead className="text-gray-300">Type</TableHead>
+                    <TableHead className="text-gray-300">Location</TableHead>
+                    <TableHead className="text-gray-300 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.values(purokData).flatMap(purok => purok.farmers).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                        No registrants found in database
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    Object.values(purokData).flatMap(purok => purok.farmers).map((farmer) => (
+                      <TableRow key={farmer.id} className="border-t border-[#333333] hover:bg-[#252525]">
+                        <TableCell className="text-gray-400 font-mono text-sm">{farmer.id}</TableCell>
+                        <TableCell className="text-gray-200">{farmer.name}</TableCell>
+                        <TableCell>
+                          <Badge className={farmer.type === 'Farmer' ? 'bg-green-900/50 text-green-300' : 'bg-blue-900/50 text-blue-300'}>
+                            {farmer.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-400 text-sm">{farmer.address}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewFarmer(farmer)}
+                            className="h-8 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+                          >
+                            <i className="fas fa-eye mr-1"></i> View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Filter Modal */}
-      {showFilterModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-[#333333] rounded-lg p-6 w-96">
-            <h3 className="text-white text-lg font-semibold mb-4">Filter Options</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-gray-300 text-sm mb-2 block">Registrant Type</label>
-                <select 
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full bg-[#252525] border border-[#333333] text-white p-2 rounded"
-                >
-                  <option value="all">All Types</option>
-                  <option value="farmer">Farmers Only</option>
-                  <option value="fisherfolk">Fisherfolk Only</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-300 text-sm mb-2 block">Location</label>
-                <select 
-                  value={selectedPurok}
-                  onChange={(e) => setSelectedPurok(e.target.value)}
-                  className="w-full bg-[#252525] border border-[#333333] text-white p-2 rounded"
-                >
-                  {Object.keys(purokData).map((purok) => (
-                    <option key={purok} value={purok}>{purok}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button 
-                onClick={() => setShowFilterModal(false)}
-                className="flex-1 bg-[#333333] hover:bg-[#404040] text-white"
-              >
-                Apply Filter
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowFilterModal(false)}
+      {showViewModal && selectedFarmer && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="bg-[#1e1e1e] border-0 shadow-xl max-w-2xl w-full">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-[#333333]">
+              <CardTitle className="text-white">Registrant Details</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowViewModal(false)}
                 className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
               >
-                Cancel
+                <i className="fas fa-times"></i>
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Farmer/Fisherfolk Modal */}
-      {showViewModal && selectedFarmer && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-[#333333] rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">
-                {selectedFarmer.type} Details
-              </h3>
-              <Badge className={
-                selectedFarmer.type === 'Farmer' 
-                  ? 'bg-green-900/50 text-green-300' 
-                  : 'bg-blue-900/50 text-blue-300'
-              }>
-                {selectedFarmer.type}
-              </Badge>
-            </div>
-            <div className="space-y-4">
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-gray-400 text-sm">RSBSA No.</label>
+                  <label className="text-gray-400 text-sm">RSBSA Number</label>
                   <p className="text-white font-mono">{selectedFarmer.id}</p>
                 </div>
                 <div>
                   <label className="text-gray-400 text-sm">Status</label>
-                  <p className="text-green-400">{selectedFarmer.status}</p>
+                  <p>
+                    <Badge className="bg-green-900/50 text-green-300">{selectedFarmer.status}</Badge>
+                  </p>
                 </div>
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm">Full Name</label>
-                <p className="text-white font-medium">{selectedFarmer.name}</p>
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm">Contact Number</label>
-                <p className="text-white">{selectedFarmer.contact}</p>
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm">Address</label>
-                <p className="text-white">{selectedFarmer.address}</p>
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm">Coordinates</label>
-                <p className="text-white font-mono text-sm">{selectedFarmer.coordinates}</p>
-              </div>
-              {selectedFarmer.size !== 'N/A' && (
+                <div>
+                  <label className="text-gray-400 text-sm">Full Name</label>
+                  <p className="text-white">{selectedFarmer.name}</p>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm">Contact Number</label>
+                  <p className="text-white">{selectedFarmer.contact}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-gray-400 text-sm">Address</label>
+                  <p className="text-white">{selectedFarmer.address}</p>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm">Coordinates</label>
+                  <p className="text-white font-mono text-sm">{selectedFarmer.coordinates}</p>
+                </div>
                 <div>
                   <label className="text-gray-400 text-sm">Farm Size</label>
                   <p className="text-white">{selectedFarmer.size}</p>
                 </div>
-              )}
-              <div>
-                <label className="text-gray-400 text-sm">
-                  {selectedFarmer.type === 'Farmer' ? 'Crops/Livestock' : 'Activities'}
-                </label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {selectedFarmer.crops.map((crop, index) => (
-                    <Badge key={index} className="bg-gray-900/50 text-gray-300">
-                      {crop}
+                <div>
+                  <label className="text-gray-400 text-sm">Type</label>
+                  <p>
+                    <Badge className={selectedFarmer.type === 'Farmer' ? 'bg-green-900/50 text-green-300' : 'bg-blue-900/50 text-blue-300'}>
+                      {selectedFarmer.type}
                     </Badge>
-                  ))}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm">Date Registered</label>
+                  <p className="text-white">{selectedFarmer.dateRegistered}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-gray-400 text-sm">Crops/Activities</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {selectedFarmer.crops.length > 0 ? (
+                      selectedFarmer.crops.map((crop, idx) => (
+                        <Badge key={idx} className="bg-[#333333] text-gray-300">{crop}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 text-sm">No crops/activities listed</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm">Date Registered</label>
-                <p className="text-white">{selectedFarmer.dateRegistered}</p>
+              <div className="flex gap-2 justify-end pt-4 border-t border-[#333333]">
+                {selectedFarmer.type === 'Farmer' && (
+                  <Button
+                    onClick={handleViewOnMap}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <i className="fas fa-map-marker-alt mr-2"></i> View on Map
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setShowViewModal(false)}
+                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+                >
+                  Close
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button 
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <i className="fas fa-edit mr-2"></i>
-                Edit Details
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowViewModal(false)}
-                className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Import Confirmation Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-[#333333] rounded-lg p-6 w-96">
-            <h3 className="text-white text-lg font-semibold mb-4">Confirm Import</h3>
-            <p className="text-gray-300 mb-6">
-              Are you sure you want to import the selected file? This will add new records to the database.
-            </p>
-            <div className="flex gap-3">
-              <Button 
-                onClick={handleImport}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <i className="fas fa-upload mr-2"></i>
-                Import
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowImportModal(false)}
-                className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="bg-[#1e1e1e] border-0 shadow-xl max-w-md w-full">
+            <CardHeader className="border-b border-[#333333]">
+              <CardTitle className="text-white">Import Data</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="border-2 border-dashed border-[#444444] rounded-md p-8 text-center">
+                <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                <p className="text-gray-300 mb-2">Drag & drop your files here</p>
+                <p className="text-gray-400 text-sm mb-4">or</p>
+                <Input
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                  accept=".csv,.xlsx,.xls"
+                />
+                <label htmlFor="file-upload">
+                  <Button variant="outline" className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300" as="span">
+                    <i className="fas fa-folder-open mr-2"></i> Browse Files
+                  </Button>
+                </label>
+                {selectedFile && (
+                  <div className="mt-4 p-3 bg-[#252525] rounded-md">
+                    <p className="text-gray-300 text-sm">
+                      <i className="fas fa-file mr-2"></i> {selectedFile.name}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setSelectedFile(null);
+                  }}
+                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleImport}
+                  disabled={!selectedFile}
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                >
+                  <i className="fas fa-upload mr-2"></i> Import
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="bg-[#1e1e1e] border-0 shadow-xl max-w-md w-full">
+            <CardHeader className="border-b border-[#333333]">
+              <CardTitle className="text-white">Export Data</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  className="w-full border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 justify-start"
+                  onClick={() => handleExport('CSV')}
+                >
+                  <i className="fas fa-file-csv mr-3 text-green-400"></i>
+                  <div className="text-left">
+                    <div>Export as CSV</div>
+                    <div className="text-xs text-gray-400">Comma-separated values</div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 justify-start"
+                  onClick={() => handleExport('Excel')}
+                >
+                  <i className="fas fa-file-excel mr-3 text-green-600"></i>
+                  <div className="text-left">
+                    <div>Export as Excel</div>
+                    <div className="text-xs text-gray-400">Microsoft Excel format</div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 justify-start"
+                  onClick={() => handleExport('PDF')}
+                >
+                  <i className="fas fa-file-pdf mr-3 text-red-400"></i>
+                  <div className="text-left">
+                    <div>Export as PDF</div>
+                    <div className="text-xs text-gray-400">Portable document format</div>
+                  </div>
+                </Button>
+              </div>
+              <div className="flex gap-2 justify-end pt-4 border-t border-[#333333]">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExportModal(false)}
+                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="bg-[#1e1e1e] border-0 shadow-xl max-w-md w-full">
+            <CardHeader className="border-b border-[#333333]">
+              <CardTitle className="text-white">Filter Options</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-3">
+                <Button
+                  variant={filterType === 'all' ? 'default' : 'outline'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setFilterType('all');
+                    setShowFilterModal(false);
+                  }}
+                >
+                  <i className="fas fa-users mr-3"></i> All Registrants
+                </Button>
+                <Button
+                  variant={filterType === 'farmer' ? 'default' : 'outline'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setFilterType('farmer');
+                    setShowFilterModal(false);
+                  }}
+                >
+                  <i className="fas fa-tractor mr-3"></i> Farmers Only
+                </Button>
+                <Button
+                  variant={filterType === 'fisherfolk' ? 'default' : 'outline'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setFilterType('fisherfolk');
+                    setShowFilterModal(false);
+                  }}
+                >
+                  <i className="fas fa-fish mr-3"></i> Fisherfolk Only
+                </Button>
+              </div>
+              <div className="flex gap-2 justify-end pt-4 border-t border-[#333333]">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilterModal(false)}
+                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+                >
+                  Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
   );
 };
-
 
 export default MapPage;

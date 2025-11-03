@@ -13,6 +13,8 @@ import TopNavigation from "@/components/TopNavigation";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import AppRoutes from "./routes/AppRoutes";
 import ApiService from "./services/api";
+import { supabase } from './services/api'; // ✅ Add { supabase }
+import { Toast } from "@/components/ui/toast";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 
 // Main App Content Component (inside Router)
@@ -34,11 +36,11 @@ const AppContent = () => {
   const [date, setDate] = useState(new Date());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Modal states for error and success
-  const [showErrorModal, setShowErrorModal] = useState(false);
+  // Toast states for error and success (replacing modals)
+  const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showSuspendedModal, setShowSuspendedModal] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showSuspendedToast, setShowSuspendedToast] = useState(false);
 
   // Only show this after a successful login, not page reload
   const [justLoggedIn, setJustLoggedIn] = useState(false);
@@ -99,31 +101,41 @@ const AppContent = () => {
     // OMITTED FOR BREVITY
   };
 
- // Login against Supabase users table (no Supabase Auth)
+  // Login against Supabase users table (no Supabase Auth)
 const handleLogin = async (e) => {
   e.preventDefault();
   setLoading(true);
   setLoginError("");
-  setShowErrorModal(false);
-  setShowSuccessModal(false);
-  setShowSuspendedModal(false);
+  setShowErrorToast(false);
+  setShowSuccessToast(false);
+  setShowSuspendedToast(false);
 
   try {
-    const { data, error: tableErr } = await ApiService.login(email, password); // ✅ Changed from loginTable to login
-    const profile = data?.user; // ✅ Extract user from data
-    
+    // ✅ Get user's IP address
+    const ipAddress = await ApiService.getUserIpAddress();
+
+    const { data, error: tableErr } = await ApiService.login(email, password);
+    const profile = data?.user;
+
     if (tableErr || !profile) {
       throw new Error("Invalid email or password");
     }
 
     // Block login if account is suspended/inactive
     if (profile.is_active === false) {
-      const msg = "Your account is suspended. Please contact your administrator.";
+      const msg =
+        "Your account is suspended. Please contact your administrator.";
       setErrorMessage(msg);
-      setShowSuspendedModal(true);
+      setShowSuspendedToast(true);
       setLoading(false);
       return;
     }
+
+    // ✅ Update last_login timestamp in database
+    await supabase
+      .from('users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', profile.id);
 
     const userData = {
       id: profile.id,
@@ -132,10 +144,19 @@ const handleLogin = async (e) => {
       last_name: profile.last_name || "",
       role: profile.role || "user",
       is_active: profile.is_active ?? true,
-      last_login: profile.last_login || null,
+      last_login: new Date().toISOString(), // ✅ Update with current time
       created_at: profile.created_at || null,
       source: "supabase_table",
     };
+
+    // ✅ Log the login activity
+    await ApiService.createActivityLog(
+      userData.id,
+      `${userData.first_name} ${userData.last_name}`,
+      'Log In',
+      'System',
+      ipAddress
+    );
 
     setUser(userData);
     setIsLoggedIn(true);
@@ -143,27 +164,45 @@ const handleLogin = async (e) => {
     setEmail("");
     setPassword("");
     setJustLoggedIn(true);
-    setShowSuccessModal(true);
+    setShowSuccessToast(true);
+    
     setTimeout(() => {
-      setShowSuccessModal(false);
+      setShowSuccessToast(false);
       setJustLoggedIn(false);
       navigate("/dashboard");
     }, 2000);
   } catch (error) {
     setLoginError(error.message || "Login failed. Please try again.");
     setErrorMessage(error.message || "Login failed. Please try again.");
-    // If not an explicit suspension, show generic error modal
-    if (!showSuspendedModal) {
-      setShowErrorModal(true);
-      setTimeout(() => setShowErrorModal(false), 2000);
+    // If not an explicit suspension, show generic error toast
+    if (!showSuspendedToast) {
+      setShowErrorToast(true);
     }
   } finally {
     setLoading(false);
   }
 };
 
+const handleLogout = async () => {
+  try {
+    // ✅ Get current user from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    // ✅ Get user's IP address
+    const ipAddress = await ApiService.getUserIpAddress();
 
-  const handleLogout = () => {
+    // ✅ Log the logout activity
+    if (currentUser.id && currentUser.first_name && currentUser.last_name) {
+      await ApiService.createActivityLog(
+        currentUser.id,
+        `${currentUser.first_name} ${currentUser.last_name}`,
+        'Log Out',
+        'System',
+        ipAddress
+      );
+    }
+
+    // Clear localStorage and state
     ApiService.logout();
     localStorage.removeItem("user");
     localStorage.removeItem("isLoggedIn");
@@ -172,7 +211,20 @@ const handleLogin = async (e) => {
     setEmail("");
     setPassword("");
     navigate("/");
-  };
+  } catch (error) {
+    console.error('Error logging out:', error);
+    // Still log out even if activity logging fails
+    ApiService.logout();
+    localStorage.removeItem("user");
+    localStorage.removeItem("isLoggedIn");
+    setUser(null);
+    setIsLoggedIn(false);
+    setEmail("");
+    setPassword("");
+    navigate("/");
+  }
+};
+
 
   // Get user's full name for welcome notification
   const getUserName = () =>
@@ -194,45 +246,53 @@ const handleLogin = async (e) => {
           setPassword={setPassword}
           loginError={loginError}
           handleLogin={handleLogin}
-          showErrorModal={showErrorModal}
-          setShowErrorModal={setShowErrorModal}
+          showErrorModal={showErrorToast}
+          setShowErrorModal={setShowErrorToast}
           errorMessage={errorMessage}
           loading={loading}
         />
-        {/* Suspended Account Modal */}
-        {showSuspendedModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-yellow-800 text-white p-6 rounded-lg shadow-lg w-96 max-w-full flex flex-col items-center text-center animate-fade-in-out">
-              <div className="mb-2">⚠️ <strong>Account Suspended</strong></div>
-              <div className="mb-4">{errorMessage || 'Your account is suspended. Please contact your administrator.'}</div>
-              <button
-                onClick={() => setShowSuspendedModal(false)}
-                className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded"
-              >
-                Close
-              </button>
+        {/* Suspended Account Toast - Center of screen */}
+        {showSuspendedToast && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <Toast
+                variant="warning"
+                title="Account Suspended"
+                description={
+                  errorMessage ||
+                  "Your account is suspended. Please contact your administrator."
+                }
+                onClose={() => setShowSuspendedToast(false)}
+                autoCloseMs={5000}
+              />
             </div>
           </div>
         )}
-        {/* Error Modal */}
-        {showErrorModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-red-800 text-white p-6 rounded-lg shadow-lg w-96 max-w-full flex flex-col items-center text-center animate-fade-in-out">
-              <div className="mb-2">
-                ❌ <strong>Login Failed</strong>
-              </div>
-              <div className="mb-4">{errorMessage}</div>
+        {/* Error Toast - Center of screen */}
+        {showErrorToast && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <Toast
+                variant="error"
+                title="Login Failed"
+                description={errorMessage}
+                onClose={() => setShowErrorToast(false)}
+                autoCloseMs={2000}
+              />
             </div>
           </div>
         )}
-        {/* Success Modal */}
-        {showSuccessModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
-            <div className="bg-green-700 text-white p-6 rounded-lg shadow-lg w-96 max-w-full flex flex-col items-center text-center animate-fade-in-out">
-              <div className="mb-2">
-                ✅ <strong>Login Successful!</strong>
-              </div>
-              <div className="mb-4">Redirecting to Dashboard...</div>
+        {/* Success Toast - Center of screen */}
+        {showSuccessToast && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <Toast
+                variant="success"
+                title="Login Successful!"
+                description="Redirecting to Dashboard..."
+                onClose={() => setShowSuccessToast(false)}
+                autoCloseMs={2000}
+              />
             </div>
           </div>
         )}
@@ -246,8 +306,14 @@ const handleLogin = async (e) => {
       {/* Top-center Welcome Notification After Login ONLY */}
       {justLoggedIn && (
         <div className="fixed top-8 left-2/3 transform -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none">
-          <div className="bg-green-700 text-white px-8 py-5 rounded-lg shadow-xl font-bold text-2xl text-center pointer-events-auto animate-fade-in-out">
-            ✅ Welcome, {getUserName()}! Login Successful.
+          <div className="pointer-events-auto">
+            <Toast
+              variant="success"
+              title={`Welcome, ${getUserName()}!`}
+              description="Login Successful."
+              onClose={() => setJustLoggedIn(false)}
+              autoCloseMs={2000}
+            />
           </div>
         </div>
       )}

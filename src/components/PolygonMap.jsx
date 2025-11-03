@@ -1,18 +1,18 @@
 // src/components/PolygonMap.jsx
 'use client';
 
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Polygon, Popup, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState, useRef } from 'react';
+import { supabase } from '../services/api';
 
-export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, onExitZoom }) {
+export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, onExitZoom, zoomedFarmerId }) {
   const [geoData, setGeoData] = useState(null);
+  const [focusedFarmParcel, setFocusedFarmParcel] = useState(null);
   const mapRef = useRef(null);
   const geoJsonLayerRef = useRef(null);
 
-  // Mock mapping between GeoJSON properties and our purok names
   const propertyToPurokMapping = {
-    // These would need to match your actual GeoJSON properties
     'Purok 1': 'Purok 1, Lower Jasaan',
     'Purok 2': 'Purok 2, Lower Jasaan',
     'Purok 3': 'Purok 3, Lower Jasaan',
@@ -23,10 +23,125 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
     'Purok 8': 'Purok 8, Upper Jasaan',
     'Purok 9': 'Purok 9, Upper Jasaan',
     'Purok 10': 'Purok 10, Lower Jasaan',
-    'Purok 11': 'Purok 11, Lower Jasaan',
+    'Purok 11': 'Purok 11, Upper Jasaan',
   };
 
-  // fetch GeoJSON once the component mounts
+  useEffect(() => {
+    if (zoomedFarmerId) {
+      fetchFarmerParcel(zoomedFarmerId);
+    } else {
+      setFocusedFarmParcel(null);
+    }
+  }, [zoomedFarmerId]);
+
+  const fetchFarmerParcel = async (farmerId) => {
+    try {
+      console.log('Fetching parcel for farmer:', farmerId);
+
+      const { data: parcels, error } = await supabase
+        .from('farm_parcels')
+        .select(`
+          id,
+          total_farm_area_ha,
+          farm_location,
+          registrant_id,
+          registrants!inner (
+            id,
+            reference_no,
+            first_name,
+            surname,
+            addresses!inner (
+              barangay,
+              purok
+            )
+          )
+        `)
+        .or(`registrants.reference_no.eq.${farmerId},registrant_id.eq.${farmerId}`)
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching farm parcel:', error);
+        return;
+      }
+
+      const registrant = parcels.registrants;
+      const address = registrant.addresses?.[0];
+
+      if (!address) {
+        console.error('No address found for registrant');
+        return;
+      }
+
+      const purok = address.purok;
+      const barangay = address.barangay;
+      const hectares = parcels.total_farm_area_ha || 1;
+
+      const purokBounds = getPurokBounds(`${purok}, ${barangay}`);
+      
+      if (!purokBounds) {
+        console.error('Could not find purok bounds');
+        return;
+      }
+
+      const farmCoordinates = generateFarmPolygon(purokBounds, hectares);
+
+      setFocusedFarmParcel({
+        id: registrant.reference_no || registrant.id,
+        name: `${registrant.first_name} ${registrant.surname}`,
+        coordinates: farmCoordinates,
+        size: `${hectares} ha`,
+        purok: `${purok}, ${barangay}`,
+        purokKey: `${purok}, ${barangay}`
+      });
+
+    } catch (err) {
+      console.error('Error in fetchFarmerParcel:', err);
+    }
+  };
+
+  const getPurokBounds = (purokName) => {
+    if (!geoData || !geoData.features) return null;
+
+    for (const feature of geoData.features) {
+      const featurePurokName = getPurokName(feature.properties);
+      if (featurePurokName === purokName && feature.geometry && feature.geometry.coordinates) {
+        const coords = feature.geometry.coordinates[0];
+        
+        const lats = coords.map(c => c[1]);
+        const lngs = coords.map(c => c[0]);
+        
+        return {
+          minLat: Math.min(...lats),
+          maxLat: Math.max(...lats),
+          minLng: Math.min(...lngs),
+          maxLng: Math.max(...lngs),
+          center: {
+            lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+            lng: (Math.min(...lngs) + Math.max(...lngs)) / 2
+          }
+        };
+      }
+    }
+    return null;
+  };
+
+  const generateFarmPolygon = (purokBounds, hectares) => {
+    const sizeFactor = Math.sqrt(hectares) * 0.0008;
+    
+    const centerLat = purokBounds.center.lat;
+    const centerLng = purokBounds.center.lng;
+
+    const halfSize = sizeFactor / 2;
+
+    return [
+      [centerLat - halfSize, centerLng - halfSize],
+      [centerLat - halfSize, centerLng + halfSize],
+      [centerLat + halfSize, centerLng + halfSize],
+      [centerLat + halfSize, centerLng - halfSize],
+    ];
+  };
+
   useEffect(() => {
     fetch('/geo/Untitled project.geojson')
       .then((res) => res.json())
@@ -34,19 +149,14 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
       .catch(console.error);
   }, []);
 
-  // Function to get purok name from feature properties
   const getPurokName = (properties) => {
     const props = properties || {};
-    
-    // Try different possible property names
     const rawName = props.Name || props.PUROK || props.Barangay || props.purok || props.name || props.id;
     
-    // If we have a mapping, use it; otherwise use the raw name
     if (rawName && propertyToPurokMapping[rawName]) {
       return propertyToPurokMapping[rawName];
     }
-    
-    // Fallback: try to match partial names
+
     for (const [key, value] of Object.entries(propertyToPurokMapping)) {
       if (rawName && rawName.toString().toLowerCase().includes(key.toLowerCase())) {
         return value;
@@ -56,36 +166,42 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
     return rawName || "Unnamed Purok";
   };
 
-  // Default polygon style
   const getPolygonStyle = (feature) => {
     const purokName = getPurokName(feature.properties);
     const isSelected = purokName === selectedPurok && isZoomed;
-
+    const isFocusedPurok = focusedFarmParcel && purokName === focusedFarmParcel.purokKey;
+    
     return {
-      color: isSelected ? '#f59e0b' : '#ffffff',
-      weight: isSelected ? 4 : 2,
-      fillColor: isSelected ? '#f59e0b' : '#22d3ee',
-      fillOpacity: isSelected ? 0.7 : 0.35,
+      color: isFocusedPurok ? '#f59e0b' : isSelected ? '#f59e0b' : '#ffffff',
+      weight: isFocusedPurok ? 4 : isSelected ? 4 : 2,
+      fillColor: isFocusedPurok ? '#fbbf24' : isSelected ? '#f59e0b' : '#22d3ee',
+      fillOpacity: isFocusedPurok ? 0.5 : isSelected ? 0.7 : 0.35,
     };
   };
 
-  // Handle feature interactions
+  // ✅ Updated onEachFeature with cursor-following tooltip
   const onEachFeature = (feature, layer) => {
     const purokName = getPurokName(feature.properties);
 
-    // Popup
+    // ✅ Tooltip that follows cursor (sticky: true)
+    layer.bindTooltip(purokName, {
+      permanent: false,
+      sticky: true, // ✅ This makes it follow the cursor!
+      direction: 'top',
+      offset: [0, -10],
+      className: 'purok-tooltip',
+      opacity: 0.95
+    });
+
     layer.bindPopup(`<strong>${purokName}</strong>`);
 
-    // Events
     layer.on({
       click: (e) => {
         e.originalEvent.stopPropagation();
-        
         if (onPolygonClick) {
           onPolygonClick(purokName);
         }
 
-        // Zoom to the clicked polygon
         const map = mapRef.current;
         if (map && layer.getBounds) {
           const bounds = layer.getBounds();
@@ -96,11 +212,10 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
         }
       },
       mouseover: (e) => {
-        const currentStyle = getPolygonStyle(feature);
         const purokName = getPurokName(feature.properties);
         const isSelected = purokName === selectedPurok && isZoomed;
-        
-        if (!isSelected) {
+        const isFocusedPurok = focusedFarmParcel && purokName === focusedFarmParcel.purokKey;
+        if (!isSelected && !isFocusedPurok) {
           layer.setStyle({
             color: '#fbbf24',
             weight: 3,
@@ -115,7 +230,6 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
     });
   };
 
-  // Update styles when selection changes
   useEffect(() => {
     if (geoJsonLayerRef.current && geoData) {
       geoJsonLayerRef.current.eachLayer((layer) => {
@@ -125,14 +239,36 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
         }
       });
     }
-  }, [selectedPurok, isZoomed]);
+  }, [selectedPurok, isZoomed, focusedFarmParcel]);
 
-  // Handle exit zoom - reset map view
+  useEffect(() => {
+    if (focusedFarmParcel && focusedFarmParcel.coordinates) {
+      const map = mapRef.current;
+      
+      if (map) {
+        const purokBounds = getPurokBounds(focusedFarmParcel.purokKey);
+        
+        if (purokBounds) {
+          map.fitBounds([
+            [purokBounds.minLat, purokBounds.minLng],
+            [purokBounds.maxLat, purokBounds.maxLng]
+          ], {
+            padding: [50, 50],
+            maxZoom: 18,
+            animate: true,
+            duration: 1
+          });
+        }
+      }
+    }
+  }, [focusedFarmParcel]);
+
   const handleMapClick = () => {
-    if (isZoomed && onExitZoom) {
+    if ((isZoomed || focusedFarmParcel) && onExitZoom) {
       const map = mapRef.current;
       if (map) {
         map.setView([8.650788, 124.750792], 15);
+        setFocusedFarmParcel(null);
         onExitZoom();
       }
     }
@@ -140,6 +276,40 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
 
   return (
     <div className="relative h-full w-full">
+      {/* ✅ Custom CSS for cursor-following tooltip */}
+      <style jsx global>{`
+        .purok-tooltip {
+          background-color: rgba(0, 0, 0, 0.85) !important;
+          border: 2px solid #ffffff !important;
+          color: #ffffff !important;
+          font-weight: 600 !important;
+          font-size: 13px !important;
+          padding: 6px 12px !important;
+          border-radius: 6px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+          pointer-events: none !important;
+        }
+        
+        .purok-tooltip::before {
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+
+        .leaflet-tooltip-top:before {
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+
+        .farm-tooltip {
+          background-color: rgba(239, 68, 68, 0.9) !important;
+          border: 2px solid #ffffff !important;
+          color: #ffffff !important;
+          font-weight: 600 !important;
+          font-size: 12px !important;
+          padding: 4px 10px !important;
+          border-radius: 6px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+        }
+      `}</style>
+
       <MapContainer
         center={[8.650788, 124.750792]}
         zoom={15}
@@ -158,17 +328,47 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
         {/* draw polygons once loaded */}
         {geoData && (
           <GeoJSON
-          key={`geojson-${selectedPurok}-${isZoomed}`}   // ⬅️ This is the cause
-          data={geoData}
-          style={getPolygonStyle}
-          onEachFeature={onEachFeature}
-          ref={geoJsonLayerRef}
+            key={`geojson-${selectedPurok}-${isZoomed}-${focusedFarmParcel?.id || ''}`}
+            data={geoData}
+            style={getPolygonStyle}
+            onEachFeature={onEachFeature}
+            ref={geoJsonLayerRef}
           />        
+        )}
+
+        {/* ✅ Render focused farmer's parcel */}
+        {focusedFarmParcel && focusedFarmParcel.coordinates && (
+          <Polygon
+            positions={focusedFarmParcel.coordinates}
+            pathOptions={{
+              color: '#ef4444',
+              weight: 3,
+              fillColor: '#ef4444',
+              fillOpacity: 0.6,
+            }}
+          >
+            <Tooltip 
+              permanent 
+              direction="top" 
+              offset={[0, -10]}
+              className="farm-tooltip"
+            >
+              {focusedFarmParcel.name}
+            </Tooltip>
+            <Popup>
+              <div>
+                <strong>{focusedFarmParcel.name}</strong><br />
+                <strong>ID:</strong> {focusedFarmParcel.id}<br />
+                <strong>Size:</strong> {focusedFarmParcel.size}<br />
+                <strong>Location:</strong> {focusedFarmParcel.purok}
+              </div>
+            </Popup>
+          </Polygon>
         )}
       </MapContainer>
 
-      {/* Exit Zoom Button - positioned over the map */}
-      {isZoomed && (
+      {/* Exit Zoom Button */}
+      {(isZoomed || focusedFarmParcel) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -176,6 +376,7 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
             if (map) {
               map.setView([8.650788, 124.750792], 15);
             }
+            setFocusedFarmParcel(null);
             onExitZoom();
           }}
           className="absolute top-4 right-4 z-[1000] bg-red-600 hover:bg-red-700 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105"
@@ -196,5 +397,4 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
       )}
     </div>
   );
-
 }
