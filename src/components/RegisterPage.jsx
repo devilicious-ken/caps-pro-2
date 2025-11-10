@@ -165,91 +165,83 @@ const handleSubmit = async () => {
   setSubmitError(null);
 
   try {
-    // 1. CREATE REGISTRANT - Read from formInputs state
+    // 1. CREATE REGISTRANT
     const registrantData = {
       user_id: null,
       registry: registryType,
       surname: formInputs.surname || null,
-      first_name: formInputs.firstname || null,
-      middle_name: formInputs.middlename || null,
-      extension_name: formInputs.extensionname || null,
+      first_name: formInputs.first_name || null,
+      middle_name: formInputs.middle_name || null,
+      extension_name: formInputs.extension_name || null,
       sex: formInputs.sex || null,
-      mobile_number: formInputs.mobilenumber || null,
-      landline_number: formInputs.landlinenumber || null,
-      date_of_birth: formInputs.dateofbirth || null,
-      place_of_birth: formInputs.placeofbirth || null,
+      mobile_number: formInputs.mobile_number || null,
+      landline_number: formInputs.landline_number || null,
+      date_of_birth: formInputs.date_of_birth || null,
+      place_of_birth: formInputs.place_of_birth || null,
       religion: religion || null,
       civil_status: civilStatus || null,
-      spouse_name: civilStatus === 'Married' ? formInputs.spousename || null : null,
-      mother_full_name: formInputs.motherfullname || null,
+      spouse_name: civilStatus === 'Married' ? formInputs.spouse_name || null : null,
+      mother_full_name: formInputs.mother_full_name || null,
       is_household_head: isHouseholdHead,
-      household_members_count: !isHouseholdHead ? parseInt(formInputs.householdmemberscount) || null : null,
-      household_males: !isHouseholdHead ? parseInt(formInputs.householdmales) || null : null,
-      household_females: !isHouseholdHead ? parseInt(formInputs.householdfemales) || null : null,
+      household_members_count: !isHouseholdHead ? parseInt(formInputs.household_members_count) || null : null,
+      household_males: !isHouseholdHead ? parseInt(formInputs.household_males) || null : null,
+      household_females: !isHouseholdHead ? parseInt(formInputs.household_females) || null : null,
       is_pwd: isPwd,
       is_4ps: is4ps,
       is_indigenous: isIndigenous,
-      indigenous_group_name: isIndigenous ? formInputs.indigenousgroupname || null : null,
+      indigenous_group_name: isIndigenous ? formInputs.indigenous_group_name || null : null,
       has_government_id: hasGovId,
-      government_id_type: hasGovId ? formInputs.governmentidtype || null : null,
-      government_id_number: hasGovId ? formInputs.governmentidnumber || null : null,
+      government_id_type: hasGovId ? formInputs.government_id_type || null : null,
+      government_id_number: hasGovId ? formInputs.government_id_number || null : null,
       is_member_coop: isMemberCoop,
-      coop_name: isMemberCoop ? formInputs.coopname || null : null,
-      emergency_contact_name: formInputs.emergencycontactname || null,
-      emergency_contact_phone: formInputs.emergencycontactphone || null,
-      highest_education: formInputs.highesteducation || null,
+      coop_name: isMemberCoop ? formInputs.coop_name || null : null,
+      emergency_contact_name: formInputs.emergency_contact_name || null,
+      emergency_contact_phone: formInputs.emergency_contact_phone || null,
+      highest_education: formInputs.highest_education || null
     };
-
     const registrant = await ApiService.createRegistrant(registrantData);
-    console.log('Registrant created:', registrant.id);
 
-    // 2. CREATE ADDRESSES - Read from state variables
+    // 2. CREATE ADDRESSES
     const addresses = [
       {
         registrant_id: registrant.id,
         kind: 'permanent',
         barangay: selectedBarangay || null,
         purok: selectedPurok || null,
-        municipality_city: formInputs.permmunicipalitycity || null,
-        street: formInputs.permstreet || null,
-        province: formInputs.permprovince || null,
-        region: formInputs.permregion || null,
+        municipality_city: formInputs.perm_municipality_city || null,
+        street: formInputs.perm_street || null,
+        province: formInputs.perm_province || null,
+        region: formInputs.perm_region || null
       }
     ];
-
     if (!sameAsPermAddress) {
       addresses.push({
         registrant_id: registrant.id,
         kind: 'present',
         barangay: selectedBarangayPresent || null,
         purok: selectedPurokPresent || null,
-        municipality_city: formInputs.presmunicipalitycity || null,
-        street: formInputs.presstreet || null,
-        province: formInputs.presprovince || null,
-        region: formInputs.presregion || null,
+        municipality_city: formInputs.pres_municipality_city || null,
+        street: formInputs.pres_street || null,
+        province: formInputs.pres_province || null,
+        region: formInputs.pres_region || null
       });
     }
-
     await ApiService.createAddress(addresses);
-    console.log('Addresses created');
 
-    // 3. CREATE FINANCIAL INFO - Read from formInputs state
+    // 3. CREATE FINANCIAL INFO
     const financialData = {
       registrant_id: registrant.id,
-      rsbsa_reference_no: formInputs.rsbsareferenceno || null,
-      tin_number: formInputs.tinnumber || null,
+      rsbsa_reference_no: formInputs.rsbsa_reference_no || null,
+      tin_number: formInputs.tin_number || null,
       profession: formInputs.profession || null,
-      source_of_funds: formInputs.sourceoffunds || null,
-      income_farming: formInputs.incomefarming ? parseFloat(formInputs.incomefarming) : null,
-      income_non_farming: formInputs.incomenonfarming ? parseFloat(formInputs.incomenonfarming) : null,
+      source_of_funds: formInputs.source_of_funds || null,
+      income_farming: formInputs.income_farming ? parseFloat(formInputs.income_farming) : null,
+      income_non_farming: formInputs.income_non_farming ? parseFloat(formInputs.income_non_farming) : null
     };
-
     await ApiService.createFinancialInfo(financialData);
-    console.log('Financial info created');
 
-    // 4. CREATE CROPS (Rice, Corn, Other Crops)
+    // 4. CREATE CROPS
     const cropsToSave = [];
-
     if (isRiceChecked && riceValue) {
       cropsToSave.push({
         registrant_id: registrant.id,
@@ -258,7 +250,6 @@ const handleSubmit = async () => {
         corn_type: null
       });
     }
-
     if (isCornChecked && cornValue) {
       cropsToSave.push({
         registrant_id: registrant.id,
@@ -267,7 +258,6 @@ const handleSubmit = async () => {
         corn_type: cornType || null
       });
     }
-
     otherCrops.forEach(crop => {
       if (crop.name) {
         cropsToSave.push({
@@ -278,10 +268,8 @@ const handleSubmit = async () => {
         });
       }
     });
-
     if (cropsToSave.length > 0) {
       await ApiService.createCrops(cropsToSave);
-      console.log('Crops created');
     }
 
     // 5. CREATE LIVESTOCK
@@ -290,12 +278,10 @@ const handleSubmit = async () => {
       .map(item => ({
         registrant_id: registrant.id,
         animal: item.animal,
-        head_count: parseInt(item.headcount) || null
+        head_count: item.head_count ? parseInt(item.head_count) : null
       }));
-
     if (livestockToSave.length > 0) {
       await ApiService.createLivestock(livestockToSave);
-      console.log('Livestock created');
     }
 
     // 6. CREATE POULTRY
@@ -304,67 +290,55 @@ const handleSubmit = async () => {
       .map(item => ({
         registrant_id: registrant.id,
         bird: item.bird,
-        head_count: parseInt(item.headcount) || null
+        head_count: item.head_count ? parseInt(item.head_count) : null
       }));
-
     if (poultryToSave.length > 0) {
       await ApiService.createPoultry(poultryToSave);
-      console.log('Poultry created');
     }
 
     // 7. CREATE FARM PARCELS & PARCEL INFOS
     for (const parcel of farmParcels) {
-      if (parcel.farmlocation && parcel.totalarea) {
+      if (parcel.farm_location && parcel.total_area) {
         const parcelData = {
           registrant_id: registrant.id,
-          farmers_in_rotation: parcel.farmerrotation || null,
-          farm_location: parcel.farmlocation || null,
-          total_farm_area_ha: parcel.totalarea ? parseFloat(parcel.totalarea) : null,
-          ownership_document: parcel.ownershipdoc || null,
-          ownership_document_no: parcel.ownershipdocno || null,
-          ownership: parcel.ownershiptype || null,
-          within_ancestral_domain: parcel.ancestraldomain === 'yes',
-          agrarian_reform_beneficiary: parcel.agrarianreform === 'yes'
+          farmers_in_rotation: parcel.farmer_rotation || null,
+          farm_location: parcel.farm_location || null,
+          total_farm_area_ha: parcel.total_area ? parseFloat(parcel.total_area) : null,
+          ownership_document: parcel.ownership_doc || null,
+          ownership_document_no: parcel.ownership_doc_no || null,
+          ownership: parcel.ownership_type || null,
+          within_ancestral_domain: parcel.ancestral_domain === 'yes',
+          agrarian_reform_beneficiary: parcel.agrarian_reform === 'yes'
         };
-
         const savedParcel = await ApiService.createFarmParcel(parcelData);
-        console.log('Farm parcel created:', savedParcel.id);
-
-        // Create parcel infos for this parcel
         const parcelInfosToSave = parcelInfo
-          .filter(info => info.cropcommodity)
+          .filter(info => info.crop_commodity)
           .map(info => ({
             parcel_id: savedParcel.id,
-            crop: info.cropcommodity,
+            crop: info.crop_commodity,
             size_ha: info.size ? parseFloat(info.size) : null,
-            num_head: info.headcount ? parseInt(info.headcount) : null,
-            farm_kind: info.farmtype || null,
+            num_head: info.head_count ? parseInt(info.head_count) : null,
+            farm_kind: info.farm_type || null,
             is_organic_practitioner: info.organic === 'yes',
             remarks: info.remarks || null
           }));
-
         if (parcelInfosToSave.length > 0) {
           await ApiService.createParcelInfos(parcelInfosToSave);
-          console.log('Parcel infos created');
         }
       }
     }
 
     // 8. CREATE FISHING ACTIVITIES
     const fishingActivitiesToSave = [];
-
-    // Add checked fishing activities
     Object.keys(fishingCheckboxes).forEach(key => {
       if (fishingCheckboxes[key]) {
-        const activityName = key.replace(/([A-Z])/g, ' $1').replace(/^./, l => l.toUpperCase());
+        const activityName = key.replace(/_/g, ' ').replace(/^./, l => l.toUpperCase());
         fishingActivitiesToSave.push({
           registrant_id: registrant.id,
           activity: activityName
         });
       }
     });
-
-    // Add custom fishing activities
     fishingActivities.forEach(activity => {
       if (activity.activity) {
         fishingActivitiesToSave.push({
@@ -373,38 +347,33 @@ const handleSubmit = async () => {
         });
       }
     });
-
     if (fishingActivitiesToSave.length > 0) {
       await ApiService.createFishingActivities(fishingActivitiesToSave);
-      console.log('Fishing activities created');
     }
 
     // 9. CREATE WORK TYPES
     if (workTypes.length > 0) {
       const workTypesToSave = workTypes.map(work => ({
         registrant_id: registrant.id,
-        work: work
+        work
       }));
       await ApiService.createWorkTypes(workTypesToSave);
-      console.log('Work types created');
     }
 
     // 10. CREATE INVOLVEMENT TYPES
     if (involvementTypes.length > 0) {
       const involvementTypesToSave = involvementTypes.map(involvement => ({
         registrant_id: registrant.id,
-        involvement: involvement
+        involvement
       }));
       await ApiService.createInvolvementTypes(involvementTypesToSave);
-      console.log('Involvement types created');
     }
 
-    // ✅ 11. LOG ACTIVITY - ADD THIS NEW SECTION
+    // 11. LOG ACTIVITY
     try {
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const userRole = currentUser.role || 'user'; // 'admin', 'staff', 'user'
+      const userRole = currentUser.role || 'user';
       const userName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'Unknown User';
-      
       await ApiService.createActivityLog(
         currentUser.id,
         userName,
@@ -412,60 +381,19 @@ const handleSubmit = async () => {
         `${registrant.reference_no} (${registrant.first_name} ${registrant.surname}) - Registry: ${registryType} - Role: ${userRole}`,
         await ApiService.getUserIpAddress()
       );
-      
-      console.log('Activity logged successfully');
     } catch (logError) {
+      // Don't fail the registration if logging fails
       console.error('Failed to log activity:', logError);
-      // Don't fail the entire registration if logging fails
     }
 
-    // SUCCESS! Clear all form data
-    // ... (rest of your form clearing code stays the same)
-    
-    // Clear formInputs
+    // 12. RESET FORM
     setFormInputs({
-      referenceno: '',
-      surname: '',
-      firstname: '',
-      middlename: '',
-      extensionname: '',
-      sex: '',
-      mobilenumber: '',
-      landlinenumber: '',
-      dateofbirth: '',
-      placeofbirth: '',
-      motherfullname: '',
-      spousename: '',
-      religionother: '',
-      permstreet: '',
-      permmunicipalitycity: '',
-      permprovince: '',
-      permregion: '',
-      presstreet: '',
-      presmunicipalitycity: '',
-      presprovince: '',
-      presregion: '',
-      householdheadname: '',
-      householdheadrelationship: '',
-      householdmemberscount: '',
-      householdmales: '',
-      householdfemales: '',
-      indigenousgroupname: '',
-      governmentidtype: '',
-      governmentidnumber: '',
-      coopname: '',
-      highesteducation: '',
-      emergencycontactname: '',
-      emergencycontactphone: '',
-      rsbsareferenceno: '',
-      tinnumber: '',
-      profession: '',
-      sourceoffunds: '',
-      incomefarming: '',
-      incomenonfarming: '',
+      reference_no: '', surname: '', first_name: '', middle_name: '', extension_name: '', sex: '',
+      mobile_number: '', landline_number: '', date_of_birth: '', place_of_birth: '', mother_full_name: '', spouse_name: '',
+      perm_street: '', perm_municipality_city: '', perm_province: '', perm_region: '',
+      pres_street: '', pres_municipality_city: '', pres_province: '', pres_region: '',
+      highest_education: '', rsbsa_reference_no: '', tin_number: '', profession: '', source_of_funds: '', income_farming: '', income_non_farming: ''
     });
-
-    // Clear other states
     setReligion('');
     setCivilStatus('');
     setSelectedBarangay('');
@@ -485,37 +413,19 @@ const handleSubmit = async () => {
     setIsCornChecked(false);
     setCornType('');
     setOtherCrops([{ id: Date.now(), name: '', value: '' }]);
-    setLivestock([{ id: Date.now(), animal: '', headcount: '' }]);
-    setPoultry([{ id: Date.now(), bird: '', headcount: '' }]);
+    setLivestock([{ id: Date.now(), animal: '', head_count: '' }]);
+    setPoultry([{ id: Date.now(), bird: '', head_count: '' }]);
     setFarmParcels([{
-      id: Date.now(),
-      farmerrotation: '',
-      farmlocation: '',
-      totalarea: '',
-      ownershipdoc: '',
-      ownershipdocno: '',
-      ownershiptype: '',
-      ancestraldomain: '',
-      agrarianreform: ''
+      id: Date.now(), farmer_rotation: '', farm_location: '', total_area: '', ownership_doc: '', ownership_doc_no: '',
+      ownership_type: '', ancestral_domain: '', agrarian_reform: ''
     }]);
     setParcelInfo([{
-      id: Date.now(),
-      cropcommodity: '',
-      size: '',
-      headcount: '',
-      farmtype: '',
-      organic: '',
-      remarks: ''
+      id: Date.now(), crop_commodity: '', size: '', head_count: '', farm_type: '', organic: '', remarks: ''
     }]);
     setFishingActivities([{ id: Date.now(), activity: '' }]);
     setFishingCheckboxes({
-      fishcapture: false,
-      aquaculture: false,
-      gleaning: false,
-      fishprocessing: false,
-      fishvending: false
+      fish_capture: false, aquaculture: false, gleaning: false, fish_processing: false, fish_vending: false
     });
-
     setActiveTab('personal');
     setShowSuccessModal(true);
     setIsSubmitting(false);
@@ -526,6 +436,7 @@ const handleSubmit = async () => {
     setIsSubmitting(false);
   }
 };
+
 
   
   
@@ -2664,11 +2575,20 @@ const renderPreviewTab = () => {
                   <i className="fas fa-arrow-left mr-2"></i> Previous
                 </Button>
                 <Button 
-                  onClick={handleSubmit}
-                  className="bg-blue-600/20 hover:bg-blue-600/20/80 text-gray-200 px-6 py-2 rounded-md"
-                >
-                  <i className="fas fa-check mr-2"></i> Submit Registration
-                </Button>
+  onClick={handleSubmit}
+  className="bg-blue-600/20 hover:bg-blue-600/80 text-gray-200 px-6 py-2 rounded-md"
+  disabled={isSubmitting}
+>
+  {isSubmitting ? (
+    <>
+      <i className="fas fa-spinner fa-spin mr-2"></i> Submitting...
+    </>
+  ) : (
+    <>
+      <i className="fas fa-check mr-2"></i> Submit Registration
+    </>
+  )}
+</Button>
               </div>
             </TabsContent>
           </Tabs>

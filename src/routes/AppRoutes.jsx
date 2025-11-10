@@ -9,6 +9,7 @@ import ImportPage from "../components/ImportPage";
 import ExportPage from "../components/ExportPage";
 import HistoryPage from "../components/HistoryPage";
 import HelpPage from "../components/HelpPage";
+import Settings from "@/components/Settings";
 
 const AppRoutes = ({ user }) => {
   // Get user role for route protection
@@ -60,14 +61,13 @@ const AppRoutes = ({ user }) => {
 
       {/* Register - All users */}
       <Route
-  path="/register"
-  element={
-    <ProtectedRoute allowedRoles={["admin", "moderator", "user"]}>
-      <RegisterPage user={user} />  {/* <-- Make sure user is passed */}
-    </ProtectedRoute>
-  }
-/>
-
+        path="/register"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "moderator", "user"]}>
+            <RegisterPage user={user} /> {/* <-- Make sure user is passed */}
+          </ProtectedRoute>
+        }
+      />
 
       {/* GIS Map - All users */}
       <Route
@@ -107,7 +107,15 @@ const AppRoutes = ({ user }) => {
           </ProtectedRoute>
         }
       />
-
+      {/* Help - All users */}
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "moderator", "user"]}>
+            <Settings user={user} />
+          </ProtectedRoute>
+        }
+      />
       {/* Help - All users */}
       <Route
         path="/help"

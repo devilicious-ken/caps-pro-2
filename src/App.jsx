@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import {
   BrowserRouter as Router,
   useNavigate,
@@ -13,15 +13,29 @@ import TopNavigation from "@/components/TopNavigation";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import AppRoutes from "./routes/AppRoutes";
 import ApiService from "./services/api";
-import { supabase } from './services/api'; // ✅ Add { supabase }
+import { supabase } from "./services/api"; // ✅ Add { supabase }
 import { Toast } from "@/components/ui/toast";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 
+export const ThemeContext = createContext();
 // Main App Content Component (inside Router)
 const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // THEME STATE AND EFFECT (add here)
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "dark"
+  );
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [theme]);
   // State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState("");
@@ -102,129 +116,128 @@ const AppContent = () => {
   };
 
   // Login against Supabase users table (no Supabase Auth)
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setLoginError("");
-  setShowErrorToast(false);
-  setShowSuccessToast(false);
-  setShowSuspendedToast(false);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setLoginError("");
+    setShowErrorToast(false);
+    setShowSuccessToast(false);
+    setShowSuspendedToast(false);
 
-  try {
-    // ✅ Get user's IP address
-    const ipAddress = await ApiService.getUserIpAddress();
+    try {
+      // ✅ Get user's IP address
+      const ipAddress = await ApiService.getUserIpAddress();
 
-    const { data, error: tableErr } = await ApiService.login(email, password);
-    const profile = data?.user;
+      const { data, error: tableErr } = await ApiService.login(email, password);
+      const profile = data?.user;
 
-    if (tableErr || !profile) {
-      throw new Error("Invalid email or password");
-    }
+      if (tableErr || !profile) {
+        throw new Error("Invalid email or password");
+      }
 
-    // Block login if account is suspended/inactive
-    if (profile.is_active === false) {
-      const msg =
-        "Your account is suspended. Please contact your administrator.";
-      setErrorMessage(msg);
-      setShowSuspendedToast(true);
-      setLoading(false);
-      return;
-    }
+      // Block login if account is suspended/inactive
+      if (profile.is_active === false) {
+        const msg =
+          "Your account is suspended. Please contact your administrator.";
+        setErrorMessage(msg);
+        setShowSuspendedToast(true);
+        setLoading(false);
+        return;
+      }
 
-    // ✅ Update last_login timestamp in database
-    await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', profile.id);
+      // ✅ Update last_login timestamp in database
+      await supabase
+        .from("users")
+        .update({ last_login: new Date().toISOString() })
+        .eq("id", profile.id);
 
-    const userData = {
-      id: profile.id,
-      email: profile.email,
-      first_name: profile.first_name || "",
-      last_name: profile.last_name || "",
-      role: profile.role || "user",
-      is_active: profile.is_active ?? true,
-      last_login: new Date().toISOString(), // ✅ Update with current time
-      created_at: profile.created_at || null,
-      source: "supabase_table",
-    };
+      const userData = {
+        id: profile.id,
+        email: profile.email,
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        role: profile.role || "user",
+        is_active: profile.is_active ?? true,
+        last_login: new Date().toISOString(), // ✅ Update with current time
+        created_at: profile.created_at || null,
+        source: "supabase_table",
+      };
 
-    // ✅ Log the login activity
-    await ApiService.createActivityLog(
-      userData.id,
-      `${userData.first_name} ${userData.last_name}`,
-      'Log In',
-      'System',
-      ipAddress
-    );
-
-    setUser(userData);
-    setIsLoggedIn(true);
-    localStorage.setItem("user", JSON.stringify(userData));
-    setEmail("");
-    setPassword("");
-    setJustLoggedIn(true);
-    setShowSuccessToast(true);
-    
-    setTimeout(() => {
-      setShowSuccessToast(false);
-      setJustLoggedIn(false);
-      navigate("/dashboard");
-    }, 2000);
-  } catch (error) {
-    setLoginError(error.message || "Login failed. Please try again.");
-    setErrorMessage(error.message || "Login failed. Please try again.");
-    // If not an explicit suspension, show generic error toast
-    if (!showSuspendedToast) {
-      setShowErrorToast(true);
-    }
-  } finally {
-    setLoading(false);
-  }
-};
-
-const handleLogout = async () => {
-  try {
-    // ✅ Get current user from localStorage
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    
-    // ✅ Get user's IP address
-    const ipAddress = await ApiService.getUserIpAddress();
-
-    // ✅ Log the logout activity
-    if (currentUser.id && currentUser.first_name && currentUser.last_name) {
+      // ✅ Log the login activity
       await ApiService.createActivityLog(
-        currentUser.id,
-        `${currentUser.first_name} ${currentUser.last_name}`,
-        'Log Out',
-        'System',
+        userData.id,
+        `${userData.first_name} ${userData.last_name}`,
+        "Log In",
+        "System",
         ipAddress
       );
+
+      setUser(userData);
+      setIsLoggedIn(true);
+      localStorage.setItem("user", JSON.stringify(userData));
+      setEmail("");
+      setPassword("");
+      setJustLoggedIn(true);
+      setShowSuccessToast(true);
+
+      setTimeout(() => {
+        setShowSuccessToast(false);
+        setJustLoggedIn(false);
+        navigate("/dashboard");
+      }, 2000);
+    } catch (error) {
+      setLoginError(error.message || "Login failed. Please try again.");
+      setErrorMessage(error.message || "Login failed. Please try again.");
+      // If not an explicit suspension, show generic error toast
+      if (!showSuspendedToast) {
+        setShowErrorToast(true);
+      }
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Clear localStorage and state
-    ApiService.logout();
-    localStorage.removeItem("user");
-    localStorage.removeItem("isLoggedIn");
-    setUser(null);
-    setIsLoggedIn(false);
-    setEmail("");
-    setPassword("");
-    navigate("/");
-  } catch (error) {
-    console.error('Error logging out:', error);
-    // Still log out even if activity logging fails
-    ApiService.logout();
-    localStorage.removeItem("user");
-    localStorage.removeItem("isLoggedIn");
-    setUser(null);
-    setIsLoggedIn(false);
-    setEmail("");
-    setPassword("");
-    navigate("/");
-  }
-};
+  const handleLogout = async () => {
+    try {
+      // ✅ Get current user from localStorage
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
+      // ✅ Get user's IP address
+      const ipAddress = await ApiService.getUserIpAddress();
+
+      // ✅ Log the logout activity
+      if (currentUser.id && currentUser.first_name && currentUser.last_name) {
+        await ApiService.createActivityLog(
+          currentUser.id,
+          `${currentUser.first_name} ${currentUser.last_name}`,
+          "Log Out",
+          "System",
+          ipAddress
+        );
+      }
+
+      // Clear localStorage and state
+      ApiService.logout();
+      localStorage.removeItem("user");
+      localStorage.removeItem("isLoggedIn");
+      setUser(null);
+      setIsLoggedIn(false);
+      setEmail("");
+      setPassword("");
+      navigate("/");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      // Still log out even if activity logging fails
+      ApiService.logout();
+      localStorage.removeItem("user");
+      localStorage.removeItem("isLoggedIn");
+      setUser(null);
+      setIsLoggedIn(false);
+      setEmail("");
+      setPassword("");
+      navigate("/");
+    }
+  };
 
   // Get user's full name for welcome notification
   const getUserName = () =>
@@ -302,79 +315,81 @@ const handleLogout = async () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white">
-      {/* Top-center Welcome Notification After Login ONLY */}
-      {justLoggedIn && (
-        <div className="fixed top-8 left-2/3 transform -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto">
-            <Toast
-              variant="success"
-              title={`Welcome, ${getUserName()}!`}
-              description="Login Successful."
-              onClose={() => setJustLoggedIn(false)}
-              autoCloseMs={2000}
-            />
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      <div className="min-h-screen bg-background text-foreground transition-colors">
+        {/* Top-center Welcome Notification After Login ONLY */}
+        {justLoggedIn && (
+          <div className="fixed top-8 left-2/3 transform -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <Toast
+                variant="success"
+                title={`Welcome, ${getUserName()}!`}
+                description="Login Successful."
+                onClose={() => setJustLoggedIn(false)}
+                autoCloseMs={2000}
+              />
+            </div>
           </div>
-        </div>
-      )}
-
-      <ConnectionStatus />
-      {showConnectionStatus && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full mx-4">
-            <ConnectionStatus detailed={true} />
-            <button
-              onClick={() => setShowConnectionStatus(false)}
-              className="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-      <button
-        onClick={() => setShowConnectionStatus(true)}
-        className="fixed bottom-16 right-4 bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full z-40"
-        title="Show connection details"
-      >
-        ⚙️
-      </button>
-      <div className="flex h-screen overflow-hidden">
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
-            onClick={closeSidebar}
-          />
         )}
-        <Sidebar
-          currentPage={getCurrentPage()}
-          setCurrentPage={setCurrentPage}
-          handleLogout={handleLogout}
-          isOpen={isSidebarOpen}
-          onClose={closeSidebar}
-          user={user}
-        />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <TopNavigation
-            toggleSidebar={toggleSidebar}
+
+        <ConnectionStatus />
+        {showConnectionStatus && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full mx-4">
+              <ConnectionStatus detailed={true} />
+              <button
+                onClick={() => setShowConnectionStatus(false)}
+                className="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={() => setShowConnectionStatus(true)}
+          className="fixed bottom-16 right-4 bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full z-40"
+          title="Show connection details"
+        >
+          ⚙️
+        </button>
+        <div className="flex h-screen overflow-hidden">
+          {isSidebarOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
+              onClick={closeSidebar}
+            />
+          )}
+          <Sidebar
             currentPage={getCurrentPage()}
-            showCalendar={showCalendar}
-            setShowCalendar={setShowCalendar}
-            date={date}
-            setDate={setDate}
-            showNotifications={showNotifications}
-            setShowNotifications={setShowNotifications}
-            unreadNotifications={unreadNotifications}
-            handleLogout={handleLogout}
             setCurrentPage={setCurrentPage}
+            handleLogout={handleLogout}
+            isOpen={isSidebarOpen}
+            onClose={closeSidebar}
             user={user}
           />
-          <main className="flex-1 overflow-y-auto bg-[#121212]">
-            <AppRoutes user={user} />
-          </main>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <TopNavigation
+              toggleSidebar={toggleSidebar}
+              currentPage={getCurrentPage()}
+              showCalendar={showCalendar}
+              setShowCalendar={setShowCalendar}
+              date={date}
+              setDate={setDate}
+              showNotifications={showNotifications}
+              setShowNotifications={setShowNotifications}
+              unreadNotifications={unreadNotifications}
+              handleLogout={handleLogout}
+              setCurrentPage={setCurrentPage}
+              user={user}
+            />
+            <main className="flex-1 overflow-y-auto bg-[#121212]">
+              <AppRoutes user={user} />
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+    </ThemeContext.Provider>
   );
 };
 

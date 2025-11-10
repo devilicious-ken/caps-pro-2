@@ -38,7 +38,6 @@ async generateReferenceNo() {
     const currentYear = new Date().getFullYear();
     const yearPrefix = `RS-${currentYear}-`;
 
-    // Get all reference numbers for the current year
     const { data, error } = await supabase
       .from('registrants')
       .select('reference_no')
@@ -51,13 +50,11 @@ async generateReferenceNo() {
     let nextNumber = 1;
 
     if (data && data.length > 0 && data[0].reference_no) {
-      // Extract the number part from the last reference (e.g., "RS-2025-0001" -> "0001")
       const lastRefNo = data[0].reference_no;
       const lastNumber = parseInt(lastRefNo.split('-')[2]);
       nextNumber = lastNumber + 1;
     }
 
-    // Format the number with leading zeros (4 digits)
     const formattedNumber = String(nextNumber).padStart(4, '0');
     return `${yearPrefix}${formattedNumber}`;
   } catch (error) {
@@ -70,18 +67,51 @@ async generateReferenceNo() {
 
 async createRegistrant(data) {
   try {
-    // Generate reference number automatically
     const referenceNo = await this.generateReferenceNo();
     
     const { data: result, error } = await supabase
       .from('registrants')
-      .insert([{ ...data, reference_no: referenceNo }])
+      .insert([{ 
+        ...data, 
+        reference_no: referenceNo,
+        status: 'Created' // ✅ Set initial status
+      }])
       .select()
       .single();
 
     if (error) throw error;
     return result;
   } catch (error) {
+    throw error;
+  }
+},
+
+// ✅ Update registrant with tracking and status change
+async updateRegistrant(id, data, updatedBy, updatedByName) {
+  console.log('📡 API: Updating registrant...', { id, updatedBy, updatedByName });
+  try {
+    const { data: result, error } = await supabase
+      .from('registrants')
+      .update({
+        ...data,
+        status: 'Updated', // ✅ Change status to Updated
+        updated_at: new Date().toISOString(),
+        updated_by: updatedBy,
+        updated_by_name: updatedByName
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('✅ API: Update successful', result);
+    return result;
+  } catch (error) {
+    console.error('❌ API: Update failed', error);
     throw error;
   }
 },
@@ -188,7 +218,7 @@ async createFinancialInfo(data) {
   return result;
 },
 
-// ===== QUERY FUNCTIONS (for displaying records) =====
+// ===== QUERY FUNCTIONS =====
 
 async getRegistrants() {
   const { data, error } = await supabase
@@ -200,7 +230,8 @@ async getRegistrants() {
       livestock(*),
       poultry(*),
       farm_parcels(*),
-      financial_infos(*)
+      financial_infos(*),
+      fishing_activities(*)
     `)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });

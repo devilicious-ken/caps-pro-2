@@ -157,8 +157,8 @@ const handlePermanentDelete = async () => {
     const colors = {
       'Log In': 'bg-blue-900/50 text-blue-300',
       'Log Out': 'bg-gray-900/50 text-gray-300',
-      'Register': 'bg-green-900/50 text-green-300',
-      'Edit': 'bg-yellow-900/50 text-yellow-300',
+      'Add Registrant': 'bg-green-900/50 text-green-300',
+      'Update': 'bg-yellow-900/50 text-yellow-300',
       'Delete': 'bg-red-900/50 text-red-300',
       'Restore': 'bg-purple-900/50 text-purple-300',
       'Import': 'bg-indigo-900/50 text-indigo-300',
