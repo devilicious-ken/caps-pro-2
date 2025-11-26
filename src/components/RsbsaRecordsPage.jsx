@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,41 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import ApiService from "../services/api";
+
+// ✅ Modal Component - Moved outside to prevent re-creation on every render
+const Modal = React.memo(({ show, onClose, title, children, size = "md" }) => {
+  if (!show) return null;
+
+  const sizeClasses = {
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-2xl",
+    "2xl": "max-w-4xl",
+    "3xl": "max-w-6xl",
+    full: "max-w-[95vw]",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div
+        className={`bg-[#252525] border border-[#333333] rounded-lg shadow-xl ${sizeClasses[size]} w-full mx-4 relative`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-[#333333]">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="text-gray-400 hover:text-white hover:bg-[#333333]"
+          >
+            <i className="fas fa-times"></i>
+          </Button>
+        </div>
+        <div className="p-4">{children}</div>
+      </div>
+    </div>
+  );
+});
 
 const RsbsaRecordsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -353,39 +388,6 @@ const RsbsaRecordsPage = () => {
     }
   };
 
-  const Modal = ({ show, onClose, title, children, size = "md" }) => {
-    if (!show) return null;
-
-    const sizeClasses = {
-      md: "max-w-md",
-      lg: "max-w-lg",
-      xl: "max-w-2xl",
-      "2xl": "max-w-4xl",
-      "3xl": "max-w-6xl",
-      full: "max-w-[95vw]",
-    };
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div
-          className={`bg-[#252525] border border-[#333333] rounded-lg shadow-xl ${sizeClasses[size]} w-full mx-4 relative`}
-        >
-          <div className="flex items-center justify-between p-4 border-b border-[#333333]">
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-gray-400 hover:text-white hover:bg-[#333333]"
-            >
-              <i className="fas fa-times"></i>
-            </Button>
-          </div>
-          <div className="p-4">{children}</div>
-        </div>
-      </div>
-    );
-  };
 
   if (loading) {
     return (
@@ -1493,7 +1495,13 @@ const RsbsaRecordsPage = () => {
             </p>
             <Button
               className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => setShowSuccessModal(false)}
+              onClick={() => {
+                setShowSuccessModal(false);
+                setShowErrorModal(false);
+                setShowViewModal(false);
+                setShowEditModal(false);
+                setShowDeleteModal(false);
+              }}
             >
               OK
             </Button>

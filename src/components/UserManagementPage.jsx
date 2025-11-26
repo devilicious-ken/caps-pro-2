@@ -135,7 +135,11 @@ const UserManagementPage = () => {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedUsers(paginatedUsers.map(user => user.id));
+      setSelectedUsers(
+        paginatedUsers
+          .filter(user => user.role !== 'Admin')   // ← exclude admins
+          .map(user => user.id)
+      );
     } else {
       setSelectedUsers([]);
     }
@@ -283,11 +287,10 @@ const UserManagementPage = () => {
 
   if (loading && users.length === 0) {
     return (
-      <div className="p-6 flex items-center justify-center mt-70">
-        <div class="flex flex-row gap-2">
-          <div class="w-4 h-4 rounded-full bg-gray-700 animate-bounce [animation-delay:.7s]"></div>
-          <div class="w-4 h-4 rounded-full bg-gray-700 animate-bounce [animation-delay:.3s]"></div>
-          <div class="w-4 h-4 rounded-full bg-gray-700 animate-bounce [animation-delay:.7s]"></div>
+    <div className="p-6 flex items-center justify-center h-screen">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
+          <p className="text-gray-300">Loading users...</p>
         </div>
       </div>
     );
@@ -384,6 +387,8 @@ const UserManagementPage = () => {
             </div>
           )}
 
+          {/* Note: Checkboxes and bulk actions are hidden for Admin users */}
+
           {/* Users Table */}
           <div className="rounded-md border border-[#333333] overflow-hidden">
             <Table>
@@ -392,7 +397,10 @@ const UserManagementPage = () => {
                   <TableHead className="text-gray-300 w-[50px]">
                     <input
                       type="checkbox"
-                      checked={selectedUsers.length === paginatedUsers.length && paginatedUsers.length > 0}
+                      checked={
+                        selectedUsers.length === paginatedUsers.filter(u => u.role !== 'Admin').length &&
+                        paginatedUsers.filter(u => u.role !== 'Admin').length > 0
+                      }
                       onChange={handleSelectAll}
                       className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500"
                     />
@@ -408,20 +416,20 @@ const UserManagementPage = () => {
               <TableBody>
                 {paginatedUsers.map((user) => (
                   <TableRow key={user.id} className="border-t border-[#333333] hover:bg-[#252525]">
-                    <TableCell>
+                    {/* Hide checkbox for Admin users */}
+                    <TableCell className={`${user.role === 'Admin' ? 'invisible opacity-0' : ''}`}>
                       <input
                         type="checkbox"
                         checked={selectedUsers.includes(user.id)}
                         onChange={() => handleSelectUser(user.id)}
                         className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500"
+                        disabled={user.role === 'Admin'}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
-                          <AvatarFallback className={`text-white ${
-                            user.role === 'Admin' ? 'bg-red-600' : 'bg-green-600'
-                          }`}>
+                          <AvatarFallback className={`text-white ${user.role === 'Admin' ? 'bg-red-600' : 'bg-green-600'}`}>
                             {user.avatar}
                           </AvatarFallback>
                         </Avatar>
@@ -463,11 +471,13 @@ const UserManagementPage = () => {
                         >
                           <i className="fas fa-edit text-xs"></i>
                         </Button>
+                        {/* Hide toggle status button for Admin users */}
                         <Button
                           onClick={() => handleToggleStatus(user.id)}
                           variant="outline"
                           size="sm"
-                          className="h-8 w-8 p-0 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button"
+                          className={`h-8 w-8 p-0 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button ${user.role === 'Admin' ? 'invisible opacity-0' : ''}`}
+                          disabled={user.role === 'Admin'}
                         >
                           <i className={`fas ${user.status === 'Active' ? 'fa-toggle-on' : 'fa-toggle-off'} text-xs`}></i>
                         </Button>
