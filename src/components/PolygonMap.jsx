@@ -18,10 +18,12 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
     'Purok 3': 'Purok 3, Lower Jasaan',
     'Purok 4': 'Purok 4, Lower Jasaan',
     'Purok 5': 'Purok 5, Upper Jasaan',
-    'Purok 6': 'Purok 6, Upper Jasaan',
+    'Purok 6A': 'Purok 6A, Upper Jasaan',
+    'Purok 6B': 'Purok 6B, Upper Jasaan',
     'Purok 7': 'Purok 7, Upper Jasaan',
     'Purok 8': 'Purok 8, Upper Jasaan',
-    'Purok 9': 'Purok 9, Upper Jasaan',
+    'Purok 9A': 'Purok 9A, Upper Jasaan',
+    'Purok 9B': 'Purok 9B, Upper Jasaan',
     'Purok 10': 'Purok 10, Lower Jasaan',
     'Purok 11': 'Purok 11, Upper Jasaan',
   };
@@ -179,14 +181,14 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
     };
   };
 
-  // ✅ Updated onEachFeature with cursor-following tooltip
+  // âœ… Updated onEachFeature with cursor-following tooltip
   const onEachFeature = (feature, layer) => {
     const purokName = getPurokName(feature.properties);
 
-    // ✅ Tooltip that follows cursor (sticky: true)
+    // âœ… Tooltip that follows cursor (sticky: true)
     layer.bindTooltip(purokName, {
       permanent: false,
-      sticky: true, // ✅ This makes it follow the cursor!
+      sticky: true, // âœ… This makes it follow the cursor!
       direction: 'top',
       offset: [0, -10],
       className: 'purok-tooltip',
@@ -276,7 +278,7 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
 
   return (
     <div className="relative h-full w-full">
-      {/* ✅ Custom CSS for cursor-following tooltip */}
+      {/* âœ… Custom CSS for cursor-following tooltip */}
       <style jsx global>{`
         .purok-tooltip {
           background-color: rgba(0, 0, 0, 0.85) !important;
@@ -336,7 +338,7 @@ export default function PolygonMap({ onPolygonClick, selectedPurok, isZoomed, on
           />        
         )}
 
-        {/* ✅ Render focused farmer's parcel */}
+        {/* âœ… Render focused farmer's parcel */}
         {focusedFarmParcel && focusedFarmParcel.coordinates && (
           <Polygon
             positions={focusedFarmParcel.coordinates}

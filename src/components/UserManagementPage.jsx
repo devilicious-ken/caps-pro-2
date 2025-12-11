@@ -1,22 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/services/api';
+import { ThemeContext } from "../App";
 
-const Modal = React.memo(({ show, onClose, title, children }) => {
+const Modal = React.memo(({ show, onClose, title, children, theme }) => {
   if (!show) return null;
   
+  const modalClass = theme === 'dark'
+    ? 'bg-[#1e1e1e] border border-[#333333] shadow-2xl'
+    : 'bg-card border-0 shadow-2xl';
+
+  const textClass = theme === 'dark' ? 'text-gray-100' : 'text-card-foreground';
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" role="dialog" aria-modal="true">
-      <div className="bg-[#1e1e1e] border border-[#333333] rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]" role="dialog" aria-modal="true">
+      <div 
+        className={`${modalClass} rounded-xl p-6 w-full max-w-md transform transition-all scale-100`} 
+        onClick={(e) => e.stopPropagation()} 
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-white text-lg font-semibold">{title}</h3>
+          <h3 className={`${textClass} text-lg font-semibold`}>{title}</h3>
           <Button
             onClick={onClose}
-            className="h-8 w-8 p-0 bg-transparent hover:bg-[#333333] text-gray-400"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full"
           >
             <i className="fas fa-times"></i>
           </Button>
@@ -28,6 +41,17 @@ const Modal = React.memo(({ show, onClose, title, children }) => {
 });
 
 const UserManagementPage = () => {
+  const { theme } = useContext(ThemeContext);
+
+  const getAvatarColor = (role) => {
+    switch (role?.toLowerCase()) {
+      case 'admin': return 'bg-red-600';
+      case 'moderator': return 'bg-blue-600';
+      case 'user': return 'bg-green-600';
+      default: return 'bg-purple-600';
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -75,10 +99,8 @@ const UserManagementPage = () => {
 
   const isEditFormValid = editingUser && editingUser.firstName?.trim() && editingUser.lastName?.trim() &&
     validateEmail(editingUser.email || '') === '' &&
-    // Password optional on edit; only validate if provided
     ((editingUser.newPassword || '').length === 0 || validatePassword(editingUser.newPassword) === '');
 
-  // Fetch users from Supabase
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -119,16 +141,14 @@ const UserManagementPage = () => {
     fetchUsers();
   }, []);
 
-  // Filter users based on search and filters
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
@@ -136,9 +156,7 @@ const UserManagementPage = () => {
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       setSelectedUsers(
-        paginatedUsers
-          .filter(user => user.role !== 'Admin')   // ← exclude admins
-          .map(user => user.id)
+        paginatedUsers.filter(user => user.role !== 'Admin').map(user => user.id)
       );
     } else {
       setSelectedUsers([]);
@@ -156,7 +174,6 @@ const UserManagementPage = () => {
   const handleAddUser = async () => {
     try {
       setLoading(true);
-      // Final guard validation before submit
       const emailError = validateEmail(newUser.email);
       const passwordError = validatePassword(newUser.password);
       const updatedErrors = {
@@ -171,28 +188,22 @@ const UserManagementPage = () => {
         setLoading(false);
         return;
       }
-      const { error } = await supabase
-        .from('users')
-        .insert([
-          {
-            first_name: newUser.firstName,
-            last_name: newUser.lastName,
-            email: newUser.email,
-            password: newUser.password,
-            role: newUser.role,
-            is_active: true
-          }
-        ]);
-
+      const { error } = await supabase.from('users').insert([{
+        first_name: newUser.firstName,
+        last_name: newUser.lastName,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role,
+        is_active: true
+      }]);
       if (error) throw error;
-
       await fetchUsers();
       setNewUser({ firstName: '', lastName: '', email: '', password: '', role: 'user' });
       setFormErrors({ firstName: '', lastName: '', email: '', password: '' });
       setShowPassword(false);
       setShowAddModal(false);
     } catch (error) {
-      console.error('Error adding user to Supabase:', error);
+      console.error('Error adding user:', error);
       setError('Failed to add user.');
     } finally {
       setLoading(false);
@@ -212,7 +223,6 @@ const UserManagementPage = () => {
   const handleUpdateUser = async () => {
     try {
       setLoading(true);
-      // Compute updates; keep current password if newPassword is blank
       const updates = {
         first_name: editingUser.firstName,
         last_name: editingUser.lastName,
@@ -222,21 +232,15 @@ const UserManagementPage = () => {
       if ((editingUser.newPassword || '').length > 0) {
         updates.password = editingUser.newPassword;
       }
-
-      const { error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', editingUser.id);
-
+      const { error } = await supabase.from('users').update(updates).eq('id', editingUser.id);
       if (error) throw error;
-
       await fetchUsers();
       setShowEditModal(false);
       setEditingUser(null);
       setEditFormErrors({ firstName: '', lastName: '', email: '', password: '' });
       setShowEditPassword(false);
     } catch (error) {
-      console.error('Error updating user in Supabase:', error);
+      console.error('Error updating user:', error);
       setError('Failed to update user.');
     } finally {
       setLoading(false);
@@ -246,16 +250,11 @@ const UserManagementPage = () => {
   const handleDeleteSelected = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .in('id', selectedUsers);
-
+      const { error } = await supabase.from('users').delete().in('id', selectedUsers);
       if (error) throw error;
-
       await fetchUsers();
     } catch (error) {
-      console.error('Error deleting users from Supabase:', error);
+      console.error('Error deleting users:', error);
       setError('Failed to delete selected users.');
     } finally {
       setSelectedUsers([]);
@@ -268,29 +267,42 @@ const UserManagementPage = () => {
     try {
       const user = users.find(u => u.id === userId);
       const newIsActive = !(user?.status === 'Active');
-
-      const { error } = await supabase
-        .from('users')
-        .update({ is_active: newIsActive })
-        .eq('id', userId);
-
+      const { error } = await supabase.from('users').update({ is_active: newIsActive }).eq('id', userId);
       if (error) throw error;
-
       await fetchUsers();
     } catch (error) {
-      console.error('Error toggling status in Supabase:', error);
+      console.error('Error toggling status:', error);
       setError('Failed to toggle status.');
     }
   };
 
+  // --- Dynamic Style Helpers based on Theme ---
+  const isDark = theme === 'dark';
+
+  // Container/Card Styles - Slight border added (#333333)
+  const cardClass = isDark 
+    ? 'bg-[#1e1e1e] border border-[#333333] shadow-md' 
+    : 'bg-card text-card-foreground border-0 shadow-lg hover:shadow-xl transition-shadow duration-300';
   
+  const textClass = isDark ? 'text-white' : 'text-foreground';
+  const subTextClass = isDark ? 'text-gray-400' : 'text-muted-foreground';
+  
+  // Input/Select Styles - Slight border added
+  const inputClass = isDark
+    ? 'bg-[#252525] border border-[#333333] text-gray-200 focus:ring-green-600'
+    : 'bg-muted/50 border-0 text-foreground focus:ring-primary';
+
+  // Table Styles - Slight border added
+  const tableHeaderClass = isDark ? 'bg-[#252525]' : 'bg-muted/50';
+  const tableBorderClass = isDark ? 'border-[#333333]' : 'border-border/50';
+  const tableRowHoverClass = isDark ? 'hover:bg-[#252525]' : 'hover:bg-muted/30';
 
   if (loading && users.length === 0) {
     return (
-    <div className="p-6 flex items-center justify-center h-screen">
+      <div className="p-6 flex items-center justify-center h-screen">
         <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
-          <p className="text-gray-300">Loading users...</p>
+          <i className="fas fa-spinner fa-spin text-4xl text-muted-foreground mb-4"></i>
+          <p className="text-muted-foreground">Loading users...</p>
         </div>
       </div>
     );
@@ -298,46 +310,45 @@ const UserManagementPage = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <Card className="bg-[#1e1e1e] border-0 shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className={cardClass}>
+        <CardHeader className={`flex flex-row items-center justify-between border-b ${tableBorderClass} pb-4`}>
           <div>
-            <CardTitle className="text-white text-xl">User Management</CardTitle>
+            <CardTitle className={`${textClass} text-xl font-bold`}>User Management</CardTitle>
             {error && (
-              <p className="text-yellow-400 text-sm mt-1">
-                <i className="fas fa-exclamation-triangle mr-1"></i>
-                {error}
+              <p className="text-destructive text-sm mt-1">
+                <i className="fas fa-exclamation-triangle mr-1"></i> {error}
               </p>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Button 
               onClick={fetchUsers}
-              className="bg-blue-600 hover:bg-blue-700 text-white !rounded-button"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground !rounded-button shadow-sm border-0"
               disabled={loading}
             >
               <i className="fas fa-sync-alt mr-2"></i> Refresh
             </Button>
             <Button 
               onClick={() => setShowAddModal(true)}
-              className="bg-green-600 hover:bg-green-700 text-white !rounded-button whitespace-nowrap"
+              className="bg-green-600 hover:bg-green-700 text-white !rounded-button whitespace-nowrap shadow-sm border-0"
             >
               <i className="fas fa-plus mr-2"></i> Add New User
             </Button>
           </div>
         </CardHeader>
         
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <i className="fas fa-search absolute left-3 top-8 transform -translate-y-1/2 text-gray-400"></i>
+                <i className={`fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 ${subTextClass}`}></i>
                 <input
                   type="text"
                   placeholder="Search users..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-600"
+                  className={`w-full pl-10 pr-4 py-2 rounded-md focus:outline-none focus:ring-2 transition-all ${inputClass}`}
                 />
               </div>
             </div>
@@ -345,7 +356,7 @@ const UserManagementPage = () => {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+              className={`px-3 py-2 rounded-md focus:outline-none focus:ring-2 cursor-pointer ${inputClass}`}
             >
               <option value="all">All Roles</option>
               <option value="Admin">Admin</option>
@@ -355,7 +366,7 @@ const UserManagementPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+              className={`px-3 py-2 rounded-md focus:outline-none focus:ring-2 cursor-pointer ${inputClass}`}
             >
               <option value="all">All Status</option>
               <option value="Active">Active</option>
@@ -365,11 +376,12 @@ const UserManagementPage = () => {
 
           {/* Bulk Actions */}
           {selectedUsers.length > 0 && (
-            <div className="flex items-center gap-4 p-3 bg-[#252525] rounded-md border border-[#333333]">
-              <span className="text-gray-300">{selectedUsers.length} selected</span>
+            <div className={`flex items-center gap-4 p-3 rounded-md border ${tableBorderClass} ${isDark ? 'bg-[#252525]' : 'bg-muted/20'} animate-in fade-in slide-in-from-top-2`}>
+              <span className={`text-sm font-medium ${subTextClass}`}>{selectedUsers.length} selected</span>
+              {/* UPDATED: Red Delete Button */}
               <Button
                 onClick={() => setShowDeleteModal(true)}
-                className="bg-red-600 hover:bg-red-700 text-white !rounded-button"
+                className="bg-red-600 hover:bg-red-700 text-white !rounded-button shadow-sm border-0"
                 size="sm"
               >
                 <i className="fas fa-trash mr-2"></i> Delete Selected
@@ -379,7 +391,7 @@ const UserManagementPage = () => {
                   selectedUsers.forEach(userId => handleToggleStatus(userId));
                   setSelectedUsers([]);
                 }}
-                className="bg-orange-600 hover:bg-orange-700 text-white !rounded-button"
+                className="bg-orange-600 hover:bg-orange-700 text-white !rounded-button shadow-sm border-0"
                 size="sm"
               >
                 <i className="fas fa-toggle-on mr-2"></i> Toggle Status
@@ -387,14 +399,12 @@ const UserManagementPage = () => {
             </div>
           )}
 
-          {/* Note: Checkboxes and bulk actions are hidden for Admin users */}
-
           {/* Users Table */}
-          <div className="rounded-md border border-[#333333] overflow-hidden">
+          <div className={`rounded-md overflow-hidden border ${tableBorderClass}`}>
             <Table>
-              <TableHeader className="bg-[#252525]">
-                <TableRow>
-                  <TableHead className="text-gray-300 w-[50px]">
+              <TableHeader className={tableHeaderClass}>
+                <TableRow className={`border-b ${tableBorderClass} hover:bg-transparent`}>
+                  <TableHead className="w-[50px]">
                     <input
                       type="checkbox"
                       checked={
@@ -402,61 +412,60 @@ const UserManagementPage = () => {
                         paginatedUsers.filter(u => u.role !== 'Admin').length > 0
                       }
                       onChange={handleSelectAll}
-                      className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500"
+                      className="w-4 h-4 text-primary bg-card border-gray-500 rounded focus:ring-primary"
                     />
                   </TableHead>
-                  <TableHead className="text-gray-300">Name</TableHead>
-                  <TableHead className="text-gray-300">Email</TableHead>
-                  <TableHead className="text-gray-300">Password</TableHead>
-                  <TableHead className="text-gray-300">Role</TableHead>
-                  <TableHead className="text-gray-300">Status</TableHead>
-                  <TableHead className="text-gray-300 text-right">Actions</TableHead>
+                  <TableHead className={`${subTextClass} font-semibold`}>Name</TableHead>
+                  <TableHead className={`${subTextClass} font-semibold`}>Email</TableHead>
+                  <TableHead className={`${subTextClass} font-semibold`}>Password</TableHead>
+                  <TableHead className={`${subTextClass} font-semibold`}>Role</TableHead>
+                  <TableHead className={`${subTextClass} font-semibold`}>Status</TableHead>
+                  <TableHead className={`${subTextClass} font-semibold text-right`}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedUsers.map((user) => (
-                  <TableRow key={user.id} className="border-t border-[#333333] hover:bg-[#252525]">
-                    {/* Hide checkbox for Admin users */}
+                  <TableRow key={user.id} className={`border-b ${tableBorderClass} ${tableRowHoverClass} transition-colors`}>
                     <TableCell className={`${user.role === 'Admin' ? 'invisible opacity-0' : ''}`}>
                       <input
                         type="checkbox"
                         checked={selectedUsers.includes(user.id)}
                         onChange={() => handleSelectUser(user.id)}
-                        className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500"
+                        className="w-4 h-4 text-primary bg-card border-gray-500 rounded focus:ring-primary"
                         disabled={user.role === 'Admin'}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className={`text-white ${user.role === 'Admin' ? 'bg-red-600' : 'bg-green-600'}`}>
+                        <Avatar className="h-9 w-9 ring-1 ring-border/50">
+                          <AvatarFallback className={`text-white text-xs font-bold ${getAvatarColor(user.role)}`}>
                             {user.avatar}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium text-gray-200">{user.name}</div>
+                          <div className={`font-medium ${textClass}`}>{user.name}</div>
                           {user.lastLogin && (
-                            <div className="text-xs text-gray-500">
+                            <div className={`text-xs ${subTextClass}`}>
                               Last login: {new Date(user.lastLogin).toLocaleDateString()}
                             </div>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-gray-400">{user.email}</TableCell>
-                    <TableCell className="text-gray-400 font-mono">{user.password}</TableCell>
+                    <TableCell className={subTextClass}>{user.email}</TableCell>
+                    <TableCell className={`${subTextClass} font-mono text-sm`}>{user.password}</TableCell>
                     <TableCell>
                       <Badge className={user.role === 'Admin' ? 
-                        'bg-red-900/50 text-red-300 hover:bg-red-900/70' : 
-                        'bg-green-900/50 text-green-300 hover:bg-green-900/70'
+                        'bg-red-500/10 text-red-600 border border-red-500/20' : 
+                        'bg-green-500/10 text-green-600 border border-green-500/20'
                       }>
                         {user.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge className={user.status === 'Active' ? 
-                        'bg-green-900/50 text-green-300 hover:bg-green-900/70' : 
-                        'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+                        'bg-green-500/10 text-green-600 border border-green-500/20' : 
+                        'bg-gray-500/10 text-gray-500 border border-gray-500/20'
                       }>
                         {user.status}
                       </Badge>
@@ -465,21 +474,20 @@ const UserManagementPage = () => {
                       <div className="flex justify-end gap-2">
                         <Button
                           onClick={() => handleEditUser(user)}
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button"
+                          className={`h-8 w-8 p-0 ${subTextClass} hover:text-primary hover:bg-muted/50 rounded-full`}
                         >
                           <i className="fas fa-edit text-xs"></i>
                         </Button>
-                        {/* Hide toggle status button for Admin users */}
                         <Button
                           onClick={() => handleToggleStatus(user.id)}
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className={`h-8 w-8 p-0 border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button ${user.role === 'Admin' ? 'invisible opacity-0' : ''}`}
+                          className={`h-8 w-8 p-0 ${subTextClass} hover:text-primary hover:bg-muted/50 rounded-full ${user.role === 'Admin' ? 'invisible opacity-0' : ''}`}
                           disabled={user.role === 'Admin'}
                         >
-                          <i className={`fas ${user.status === 'Active' ? 'fa-toggle-on' : 'fa-toggle-off'} text-xs`}></i>
+                          <i className={`fas ${user.status === 'Active' ? 'fa-toggle-on text-green-600' : 'fa-toggle-off'} text-xs`}></i>
                         </Button>
                       </div>
                     </TableCell>
@@ -490,9 +498,9 @@ const UserManagementPage = () => {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between">
-            <div className="text-gray-400 text-sm">
-              Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredUsers.length)} of {filteredUsers.length} user records
+          <div className="flex items-center justify-between pt-2">
+            <div className={`${subTextClass} text-sm`}>
+              Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -500,9 +508,9 @@ const UserManagementPage = () => {
                 disabled={currentPage === 1}
                 variant="outline"
                 size="sm"
-                className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 disabled:opacity-50 !rounded-button"
+                className={`h-8 w-8 p-0 bg-transparent hover:bg-muted ${textClass} border ${tableBorderClass} disabled:opacity-50 !rounded-button`}
               >
-                <i className="fas fa-chevron-left"></i>
+                <i className="fas fa-chevron-left text-xs"></i>
               </Button>
               
               <div className="flex items-center gap-1">
@@ -510,12 +518,13 @@ const UserManagementPage = () => {
                   <Button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    variant={page === currentPage ? "default" : "outline"}
+                    variant={page === currentPage ? "default" : "ghost"}
                     size="sm"
-                    className={page === currentPage ? 
-                      "bg-green-600 hover:bg-green-700 text-white !rounded-button" :
-                      "border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button"
-                    }
+                    className={`h-8 w-8 p-0 !rounded-button ${
+                      page === currentPage ? 
+                      "bg-primary text-primary-foreground shadow-sm" :
+                      `${subTextClass} hover:bg-muted hover:${textClass} border border-transparent`
+                    }`}
                   >
                     {page}
                   </Button>
@@ -527,9 +536,9 @@ const UserManagementPage = () => {
                 disabled={currentPage === totalPages}
                 variant="outline"
                 size="sm"
-                className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 disabled:opacity-50 !rounded-button"
+                className={`h-8 w-8 p-0 bg-transparent hover:bg-muted ${textClass} border ${tableBorderClass} disabled:opacity-50 !rounded-button`}
               >
-                <i className="fas fa-chevron-right"></i>
+                <i className="fas fa-chevron-right text-xs"></i>
               </Button>
             </div>
           </div>
@@ -537,35 +546,33 @@ const UserManagementPage = () => {
       </Card>
 
       {/* Add User Modal */}
-      <Modal show={showAddModal} onClose={() => setShowAddModal(false)} title="Add New User">
+      <Modal show={showAddModal} onClose={() => setShowAddModal(false)} title="Add New User" theme={theme}>
         <div className="space-y-4">
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">First Name</label>
-            <input
-              type="text"
-              value={newUser.firstName}
-              onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
-              autoFocus
-              className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
-            />
-            {formErrors.firstName && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.firstName}</p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={`block ${subTextClass} text-sm font-medium mb-2`}>First Name</label>
+              <input
+                type="text"
+                value={newUser.firstName}
+                onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
+                autoFocus
+                className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
+              />
+              {formErrors.firstName && <p className="text-destructive text-xs mt-1">{formErrors.firstName}</p>}
+            </div>
+            <div>
+              <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Last Name</label>
+              <input
+                type="text"
+                value={newUser.lastName}
+                onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
+                className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
+              />
+              {formErrors.lastName && <p className="text-destructive text-xs mt-1">{formErrors.lastName}</p>}
+            </div>
           </div>
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Last Name</label>
-            <input
-              type="text"
-              value={newUser.lastName}
-              onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
-              className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
-            />
-            {formErrors.lastName && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.lastName}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Email</label>
+            <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Email</label>
             <input
               type="email"
               value={newUser.email}
@@ -574,14 +581,12 @@ const UserManagementPage = () => {
                 setNewUser({...newUser, email: value});
                 setFormErrors({ ...formErrors, email: validateEmail(value) });
               }}
-              className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+              className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
             />
-            {formErrors.email && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
-            )}
+            {formErrors.email && <p className="text-destructive text-xs mt-1">{formErrors.email}</p>}
           </div>
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Password</label>
+            <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -591,27 +596,24 @@ const UserManagementPage = () => {
                   setNewUser({...newUser, password: value});
                   setFormErrors({ ...formErrors, password: validatePassword(value) });
                 }}
-                className="w-full pr-10 px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+                className={`w-full pr-10 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-gray-200"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className={`absolute inset-y-0 right-0 px-3 ${subTextClass} hover:${textClass} transition-colors`}
               >
                 <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
               </button>
             </div>
-            {formErrors.password && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
-            )}
+            {formErrors.password && <p className="text-destructive text-xs mt-1">{formErrors.password}</p>}
           </div>
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Role</label>
+            <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Role</label>
             <select
               value={newUser.role}
               onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-              className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+              className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${inputClass}`}
             >
               <option value="user">MAO Staff</option>
               <option value="admin">Admin</option>
@@ -621,13 +623,13 @@ const UserManagementPage = () => {
             <Button
               onClick={() => setShowAddModal(false)}
               variant="outline"
-              className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button"
+              className={`bg-transparent hover:bg-muted ${textClass} border ${tableBorderClass} !rounded-button`}
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddUser}
-              className="bg-green-600 hover:bg-green-700 text-white !rounded-button"
+              className="bg-green-600 hover:bg-green-700 text-white !rounded-button shadow-sm border-0"
               disabled={loading || !isFormValid}
             >
               {loading ? 'Adding...' : 'Add User'}
@@ -637,29 +639,31 @@ const UserManagementPage = () => {
       </Modal>
 
       {/* Edit User Modal */}
-      <Modal show={showEditModal} onClose={() => setShowEditModal(false)} title="Edit User">
+      <Modal show={showEditModal} onClose={() => setShowEditModal(false)} title="Edit User" theme={theme}>
         {editingUser && (
           <div className="space-y-4">
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">First Name</label>
-              <input
-                type="text"
-                value={editingUser.firstName}
-                onChange={(e) => setEditingUser({...editingUser, firstName: e.target.value})}
-                className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={`block ${subTextClass} text-sm font-medium mb-2`}>First Name</label>
+                <input
+                  type="text"
+                  value={editingUser.firstName}
+                  onChange={(e) => setEditingUser({...editingUser, firstName: e.target.value})}
+                  className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
+                />
+              </div>
+              <div>
+                <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Last Name</label>
+                <input
+                  type="text"
+                  value={editingUser.lastName}
+                  onChange={(e) => setEditingUser({...editingUser, lastName: e.target.value})}
+                  className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
+                />
+              </div>
             </div>
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Last Name</label>
-              <input
-                type="text"
-                value={editingUser.lastName}
-                onChange={(e) => setEditingUser({...editingUser, lastName: e.target.value})}
-                className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Email</label>
+              <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Email</label>
               <input
                 type="email"
                 value={editingUser.email}
@@ -668,41 +672,36 @@ const UserManagementPage = () => {
                   setEditingUser({ ...editingUser, email: value });
                   setEditFormErrors({ ...editFormErrors, email: validateEmail(value) });
                 }}
-                className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+                className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
               />
-              {editFormErrors.email && (
-                <p className="text-red-400 text-xs mt-1">{editFormErrors.email}</p>
-              )}
+              {editFormErrors.email && <p className="text-destructive text-xs mt-1">{editFormErrors.email}</p>}
             </div>
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Password</label>
+              <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Password</label>
               <div className="relative">
                 <input
                   type={showEditPassword ? 'text' : 'password'}
                   value={editingUser.newPassword || ''}
-                  placeholder="Leave blank to keep current password"
+                  placeholder="Leave blank to keep current"
                   onChange={(e) => {
                     const value = e.target.value;
                     setEditingUser({ ...editingUser, newPassword: value });
                     setEditFormErrors({ ...editFormErrors, password: value ? validatePassword(value) : '' });
                   }}
-                  className="w-full pr-10 px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+                  className={`w-full pr-10 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-all ${inputClass}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowEditPassword(!showEditPassword)}
-                  className="absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-gray-200"
-                  aria-label={showEditPassword ? 'Hide password' : 'Show password'}
+                  className={`absolute inset-y-0 right-0 px-3 ${subTextClass} hover:${textClass} transition-colors`}
                 >
                   <i className={`fas ${showEditPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                 </button>
               </div>
-              {editFormErrors.password && (
-                <p className="text-red-400 text-xs mt-1">{editFormErrors.password}</p>
-              )}
+              {editFormErrors.password && <p className="text-destructive text-xs mt-1">{editFormErrors.password}</p>}
             </div>
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Role</label>
+              <label className={`block ${subTextClass} text-sm font-medium mb-2`}>Role</label>
               <select
                 value={editingUser.roleValue || (editingUser.role === 'Admin' ? 'admin' : 'user')}
                 onChange={(e) => setEditingUser({
@@ -710,7 +709,7 @@ const UserManagementPage = () => {
                   roleValue: e.target.value,
                   role: e.target.value === 'admin' ? 'Admin' : 'MAO Staff'
                 })}
-                className="w-full px-3 py-2 bg-[#252525] border border-[#333333] rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-600"
+                className={`w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${inputClass}`}
               >
                 <option value="user">MAO Staff</option>
                 <option value="admin">Admin</option>
@@ -720,13 +719,13 @@ const UserManagementPage = () => {
               <Button
                 onClick={() => setShowEditModal(false)}
                 variant="outline"
-                className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button"
+                className={`bg-transparent hover:bg-muted ${textClass} border ${tableBorderClass} !rounded-button`}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleUpdateUser}
-                className="bg-green-600 hover:bg-green-700 text-white !rounded-button"
+                className="bg-green-600 hover:bg-green-700 text-white !rounded-button shadow-sm border-0"
                 disabled={loading || !isEditFormValid}
               >
                 {loading ? 'Updating...' : 'Update User'}
@@ -737,22 +736,22 @@ const UserManagementPage = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Deletion">
+      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Deletion" theme={theme}>
         <div className="space-y-4">
-          <p className="text-gray-300">
-            Are you sure you want to delete {selectedUsers.length} selected user(s)? This action cannot be undone.
+          <p className={subTextClass}>
+            Are you sure you want to delete <span className={`font-semibold ${textClass}`}>{selectedUsers.length}</span> selected user(s)? This action cannot be undone.
           </p>
           <div className="flex justify-end gap-2">
             <Button
               onClick={() => setShowDeleteModal(false)}
               variant="outline"
-              className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 !rounded-button"
+              className={`bg-transparent hover:bg-muted ${textClass} border ${tableBorderClass} !rounded-button`}
             >
               Cancel
             </Button>
             <Button
               onClick={handleDeleteSelected}
-              className="bg-red-600 hover:bg-red-700 text-white !rounded-button"
+              className="bg-red-600 hover:bg-red-700 text-white !rounded-button shadow-sm border-0"
               disabled={loading}
             >
               {loading ? 'Deleting...' : 'Delete'}

@@ -36,6 +36,18 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
     }, 300); // wait for transition
   }, [isSidebarCollapsed]);
 
+  // Listen for theme changes to update charts dynamically
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      initCharts();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   const detailedData = {
     "Upper Jasaan": {
       crops: {
@@ -221,28 +233,26 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
     },
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      initCharts();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   const initCharts = () => {
+    // Detect theme for chart colors
+    const isDark = document.documentElement.classList.contains("dark");
+    const textColor = isDark ? "#E4E6EB" : "#050505";
+    const tooltipBg = isDark ? "#1e1e1e" : "#FFFFFF";
+    const tooltipBorder = isDark ? "#333333" : "#E4E6EB";
+
     const genderChart = echarts.init(document.getElementById("genderChart"));
     const genderOption = {
       animation: true,
       tooltip: {
         trigger: "item",
-        backgroundColor: "#1e1e1e",
-        borderColor: "#333",
-        textStyle: { color: "#e2e8f0" },
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
+        textStyle: { color: textColor },
       },
       legend: {
         top: "5%",
         left: "center",
-        textStyle: { color: "#e2e8f0" },
+        textStyle: { color: textColor },
       },
       series: [
         {
@@ -274,7 +284,7 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           ],
           label: {
             show: true,
-            color: "#e2e8f0",
+            color: textColor,
             fontSize: 16,
             fontWeight: "bold",
             textBorderColor: "transparent",
@@ -300,13 +310,13 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       animation: true,
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1e1e1e",
-        borderColor: "#333",
-        textStyle: { color: "#e2e8f0" },
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
+        textStyle: { color: textColor },
       },
       legend: {
         data: ["Crops", "Animals"],
-        textStyle: { color: "#e2e8f0" },
+        textStyle: { color: textColor },
         top: "5%",
       },
       grid: {
@@ -319,12 +329,12 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       xAxis: {
         type: "category",
         data: ["Upper Jasaan", "Lower Jasaan"],
-        axisLabel: { color: "#e2e8f0", fontSize: 12 },
+        axisLabel: { color: textColor, fontSize: 12 },
       },
       yAxis: {
         type: "value",
-        axisLabel: { color: "#e2e8f0" },
-        nameTextStyle: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
+        nameTextStyle: { color: textColor },
       },
       series: [
         {
@@ -360,13 +370,13 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       animation: true,
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1e1e1e",
-        borderColor: "#333",
-        textStyle: { color: "#e2e8f0" },
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
+        textStyle: { color: textColor },
       },
       legend: {
         data: ["Farmers", "Fisherfolks"],
-        textStyle: { color: "#e2e8f0" },
+        textStyle: { color: textColor },
         top: "5%",
       },
       grid: {
@@ -392,11 +402,11 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           "Nov",
           "Dec",
         ],
-        axisLabel: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
       },
       yAxis: {
         type: "value",
-        axisLabel: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
       },
       series: [
         {
@@ -425,9 +435,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       animation: true,
       tooltip: {
         trigger: "item",
-        backgroundColor: "#1e1e1e",
-        borderColor: "#333",
-        textStyle: { color: "#e2e8f0" },
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
+        textStyle: { color: textColor },
         formatter: function (params) {
           return `${params.seriesName}: ${params.value} tons\n${params.name}`;
         },
@@ -446,7 +456,7 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           "Purok 10",
           "Purok 11",
         ],
-        textStyle: { color: "#e2e8f0" },
+        textStyle: { color: textColor },
         type: "scroll",
         top: "3%",
       },
@@ -459,12 +469,12 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       },
       xAxis: {
         type: "value",
-        axisLabel: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
       },
       yAxis: {
         type: "category",
         data: ["Vegetables", "Banana", "Coconut", "Corn", "Rice"],
-        axisLabel: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
         inverse: false, // Bottom to top
       },
       series: [
@@ -555,9 +565,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       animation: true,
       tooltip: {
         trigger: "item",
-        backgroundColor: "#1e1e1e",
-        borderColor: "#333",
-        textStyle: { color: "#e2e8f0" },
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
+        textStyle: { color: textColor },
         formatter: function (params) {
           return `${params.seriesName}: ${params.value} heads<br/>${params.name}`;
         },
@@ -576,7 +586,7 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           "Purok 10",
           "Purok 11",
         ],
-        textStyle: { color: "#e2e8f0" },
+        textStyle: { color: textColor },
         type: "scroll",
         top: "3%",
       },
@@ -589,12 +599,12 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       },
       xAxis: {
         type: "value",
-        axisLabel: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
       },
       yAxis: {
         type: "category",
         data: ["Cattle", "Carabao", "Goat", "Swine", "Chicken"],
-        axisLabel: { color: "#e2e8f0" },
+        axisLabel: { color: textColor },
       },
       series: [
         {
@@ -702,14 +712,14 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
   return (
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-[#1e1e1e] border-0 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-400">
+                <p className="text-sm font-medium text-muted-foreground">
                   Total Farmers
                 </p>
-                <h3 className="text-2xl font-bold text-white mt-1">1,247</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1">1,247</h3>
                 <p className="text-xs text-green-500 mt-1">
                   +15% from last month
                 </p>
@@ -721,14 +731,14 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1e1e1e] border-0 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-400">
+                <p className="text-sm font-medium text-muted-foreground">
                   Total Fisherfolks
                 </p>
-                <h3 className="text-2xl font-bold text-white mt-1">385</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1">385</h3>
                 <p className="text-xs text-blue-500 mt-1">
                   +8% from last month
                 </p>
@@ -740,12 +750,12 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1e1e1e] border-0 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-400">Total Crops</p>
-                <h3 className="text-2xl font-bold text-white mt-1">2,847</h3>
+                <p className="text-sm font-medium text-muted-foreground">Total Crops</p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">2,847</h3>
                 <p className="text-xs text-orange-500 mt-1">
                   +12% from last season
                 </p>
@@ -757,14 +767,14 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1e1e1e] border-0 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-400">
+                <p className="text-sm font-medium text-muted-foreground">
                   Total Animals
                 </p>
-                <h3 className="text-2xl font-bold text-white mt-1">8,459</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1">8,459</h3>
                 <p className="text-xs text-yellow-500 mt-1">
                   +7% from last month
                 </p>
@@ -779,9 +789,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
 
       {/* 2 Column Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-foreground text-lg">
               Registry Distribution by Gender
             </CardTitle>
           </CardHeader>
@@ -790,9 +800,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-foreground text-lg">
               Production by Area
             </CardTitle>
           </CardHeader>
@@ -803,9 +813,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       </div>
 
       {/* Line Chart - Monthly Registration Trend */}
-      <Card className="bg-[#1e1e1e] border-0 shadow-md">
+      <Card className="bg-card text-card-foreground border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-white text-lg">
+          <CardTitle className="text-foreground text-lg">
             Monthly Registration Trend
           </CardTitle>
         </CardHeader>
@@ -817,9 +827,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       {/* 3 Column Charts and Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top 5 Puroks */}
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">Top 5 Puroks</CardTitle>
+            <CardTitle className="text-foreground text-lg">Top 5 Puroks</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -832,10 +842,10 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
               ].map((purok, index) => (
                 <div key={index} className="space-y-1">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">{purok.name}</span>
-                    <span className="text-gray-400">{purok.count}</span>
+                    <span className="text-foreground">{purok.name}</span>
+                    <span className="text-muted-foreground">{purok.count}</span>
                   </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div className="w-full bg-secondary rounded-full h-2">
                     <div
                       className="bg-blue-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${purok.percent}%` }}
@@ -848,9 +858,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
         </Card>
 
         {/* Top Crops Chart */}
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-foreground text-lg">
               Top Crops Production
             </CardTitle>
           </CardHeader>
@@ -860,9 +870,9 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
         </Card>
 
         {/* Top Animals Chart */}
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-foreground text-lg">
               Top Animals Population
             </CardTitle>
           </CardHeader>
@@ -875,205 +885,205 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
       {/* Summary Tables by Barangay - Replace the existing grid with these two cards */}
       <div className="space-y-6">
         {/* Crops Production Summary */}
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-foreground text-lg">
               Crops Production Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto rounded-md border border-[#333333]">
+            <div className="overflow-x-auto rounded-md border-0">
               <Table>
-                <TableHeader className="bg-[#252525]">
+                <TableHeader className="bg-muted">
                   <TableRow>
-                    <TableHead className="text-gray-300 sticky left-0 bg-[#252525] z-10 min-w-[50px]">
+                    <TableHead className="text-muted-foreground sticky left-0 bg-muted z-10 min-w-[50px]">
                       Barangay
                     </TableHead>
                     <TableHead
-                      className="text-gray-300 text-center border-r border-[#333333]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="4"
                     >
                       Rice
                     </TableHead>
                     <TableHead
-                      className="text-gray-300 text-center border-r border-[#333333]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="4"
                     >
                       Corn
                     </TableHead>
                     <TableHead
-                      className="text-gray-300 text-center"
+                      className="text-muted-foreground text-center"
                       colSpan="2"
                     >
                       Others
                     </TableHead>
                   </TableRow>
                   <TableRow>
-                    <TableHead className="text-gray-400 sticky left-0 bg-[#252525] z-10"></TableHead>
+                    <TableHead className="text-muted-foreground sticky left-0 bg-muted z-10"></TableHead>
                     <TableHead
-                      className="text-gray-400 text-center border-r border-[#444444]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="2"
                     >
                       Irrigated
                     </TableHead>
                     <TableHead
-                      className="text-gray-400 text-center border-r border-[#333333]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="2"
                     >
                       Rainfed
                     </TableHead>
                     <TableHead
-                      className="text-gray-400 text-center border-r border-[#444444]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="2"
                     >
                       Yellow
                     </TableHead>
                     <TableHead
-                      className="text-gray-400 text-center border-r border-[#333333]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="2"
                     >
                       White
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center"></TableHead>
-                    <TableHead className="text-gray-400 text-center"></TableHead>
+                    <TableHead className="text-muted-foreground text-center"></TableHead>
+                    <TableHead className="text-muted-foreground text-center"></TableHead>
                   </TableRow>
                   <TableRow>
-                    <TableHead className="text-gray-400 sticky left-0 bg-[#252525] z-10"></TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs">
+                    <TableHead className="text-muted-foreground sticky left-0 bg-muted z-10"></TableHead>
+                    <TableHead className="text-muted-foreground text-center text-xs">
                       ha
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs border-r border-[#444444]">
+                    <TableHead className="text-muted-foreground text-center text-xs border-r border-border">
                       prd'n
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs">
+                    <TableHead className="text-muted-foreground text-center text-xs">
                       ha
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs border-r border-[#333333]">
+                    <TableHead className="text-muted-foreground text-center text-xs border-r border-border">
                       prd'n
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs">
+                    <TableHead className="text-muted-foreground text-center text-xs">
                       ha
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs border-r border-[#444444]">
+                    <TableHead className="text-muted-foreground text-center text-xs border-r border-border">
                       prd'n
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs">
+                    <TableHead className="text-muted-foreground text-center text-xs">
                       ha
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs border-r border-[#333333]">
+                    <TableHead className="text-muted-foreground text-center text-xs border-r border-border">
                       prd'n
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs">
+                    <TableHead className="text-muted-foreground text-center text-xs">
                       ha
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center text-xs">
+                    <TableHead className="text-muted-foreground text-center text-xs">
                       prd'n
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow className="border-t border-[#333333] hover:bg-[#252525] transition-colors">
-                    <TableCell className="text-gray-300 sticky left-0 bg-[#1e1e1e] font-medium">
+                  <TableRow className="border-b border-border hover:bg-muted/20 transition-colors">
+                    <TableCell className="text-foreground sticky left-0 bg-card font-medium">
                       Upper
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       312.7
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#444444]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       1,234.8
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       189.4
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       678.9
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       167.2
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#444444]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       389.5
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       100.6
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       222.8
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       298.1
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       387.6
                     </TableCell>
                   </TableRow>
-                  <TableRow className="border-t border-[#333333] hover:bg-[#252525] transition-colors">
-                    <TableCell className="text-gray-300 sticky left-0 bg-[#1e1e1e] font-medium">
+                  <TableRow className="border-b border-border hover:bg-muted/20 transition-colors">
+                    <TableCell className="text-foreground sticky left-0 bg-card font-medium">
                       Lower
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       245.5
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#444444]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       982.1
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       156.8
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       548.2
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       123.8
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#444444]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       298.3
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       65.5
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       158.4
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       234.2
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       298.5
                     </TableCell>
                   </TableRow>
-                  <TableRow className="border-t-2 border-blue-500 bg-[#252525]">
-                    <TableCell className="text-white font-bold sticky left-0 bg-[#252525]">
+                  <TableRow className="border-t-2 border-blue-500 bg-muted/30">
+                    <TableCell className="text-foreground font-bold sticky left-0 bg-card/0">
                       Total
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       558.2
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center border-r border-[#444444]">
+                    <TableCell className="text-foreground font-bold text-center border-r border-border">
                       2,216.9
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       346.2
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center border-r border-[#333333]">
+                    <TableCell className="text-foreground font-bold text-center border-r border-border">
                       1,227.1
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       291.0
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center border-r border-[#444444]">
+                    <TableCell className="text-foreground font-bold text-center border-r border-border">
                       687.8
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       166.1
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center border-r border-[#333333]">
+                    <TableCell className="text-foreground font-bold text-center border-r border-border">
                       381.2
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       532.3
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       686.1
                     </TableCell>
                   </TableRow>
@@ -1084,122 +1094,122 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
         </Card>
 
         {/* Livestock & Poultry Summary */}
-        <Card className="bg-[#1e1e1e] border-0 shadow-md">
+        <Card className="bg-card text-card-foreground border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-foreground text-lg">
               Livestock & Poultry Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto rounded-md border border-[#333333]">
+            <div className="overflow-x-auto rounded-md border-0">
               <Table>
-                <TableHeader className="bg-[#252525]">
+                <TableHeader className="bg-muted">
                   <TableRow>
-                    <TableHead className="text-gray-300 sticky left-0 bg-[#252525] z-10 min-w-[50px]">
+                    <TableHead className="text-muted-foreground sticky left-0 bg-muted z-10 min-w-[50px]">
                       Barangay
                     </TableHead>
                     <TableHead
-                      className="text-gray-300 text-center border-r border-[#333333]"
+                      className="text-muted-foreground text-center border-r border-border"
                       colSpan="3"
                     >
                       Livestock
                     </TableHead>
                     <TableHead
-                      className="text-gray-300 text-center"
+                      className="text-muted-foreground text-center"
                       colSpan="3"
                     >
                       Poultry
                     </TableHead>
                   </TableRow>
                   <TableRow>
-                    <TableHead className="text-gray-400 sticky left-0 bg-[#252525] z-10"></TableHead>
-                    <TableHead className="text-gray-400 text-center">
+                    <TableHead className="text-muted-foreground sticky left-0 bg-muted z-10"></TableHead>
+                    <TableHead className="text-muted-foreground text-center">
                       Cow
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center">
+                    <TableHead className="text-muted-foreground text-center">
                       Pig
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableHead className="text-muted-foreground text-center border-r border-border">
                       Others
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center">
+                    <TableHead className="text-muted-foreground text-center">
                       Chicken
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center">
+                    <TableHead className="text-muted-foreground text-center">
                       Duck
                     </TableHead>
-                    <TableHead className="text-gray-400 text-center">
+                    <TableHead className="text-muted-foreground text-center">
                       Others
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow className="border-t border-[#333333] hover:bg-[#252525] transition-colors">
-                    <TableCell className="text-gray-300 sticky left-0 bg-[#1e1e1e] font-medium">
+                  <TableRow className="border-b border-border hover:bg-muted/20 transition-colors">
+                    <TableCell className="text-foreground sticky left-0 bg-card font-medium">
                       Upper
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       332
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       785
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       433
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       1,481
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       89
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       67
                     </TableCell>
                   </TableRow>
-                  <TableRow className="border-t border-[#333333] hover:bg-[#252525] transition-colors">
-                    <TableCell className="text-gray-300 sticky left-0 bg-[#1e1e1e] font-medium">
+                  <TableRow className="border-b border-border hover:bg-muted/20 transition-colors">
+                    <TableCell className="text-foreground sticky left-0 bg-card font-medium">
                       Lower
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       475
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       1,091
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center border-r border-[#333333]">
+                    <TableCell className="text-muted-foreground text-center border-r border-border">
                       495
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       1,764
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       134
                     </TableCell>
-                    <TableCell className="text-gray-400 text-center">
+                    <TableCell className="text-muted-foreground text-center">
                       98
                     </TableCell>
                   </TableRow>
-                  <TableRow className="border-t-2 border-orange-500 bg-[#252525]">
-                    <TableCell className="text-white font-bold sticky left-0 bg-[#252525]">
+                  <TableRow className="border-t-2 border-orange-500 bg-muted/30">
+                    <TableCell className="text-foreground font-bold sticky left-0 bg-card/0">
                       Total
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       807
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       1,876
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center border-r border-[#333333]">
+                    <TableCell className="text-foreground font-bold text-center border-r border-border">
                       928
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       3,245
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       223
                     </TableCell>
-                    <TableCell className="text-white font-bold text-center">
+                    <TableCell className="text-foreground font-bold text-center">
                       165
                     </TableCell>
                   </TableRow>
@@ -1212,10 +1222,10 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
         {/* Modal for Production Details */}
         {selectedArea && modalType && (
           <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm">
-            <div className="bg-[#1e1e1e] p-8 rounded-2xl w-full max-w-5xl shadow-2xl transform transition-all duration-300 scale-100">
+            <div className="bg-card text-card-foreground p-8 rounded-2xl w-full max-w-5xl shadow-2xl transform transition-all duration-300 scale-100">
               {/* Header */}
-              <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
-                <h2 className="text-2xl font-bold text-white">
+              <div className="flex justify-between items-center mb-6 border-b border-border pb-3">
+                <h2 className="text-2xl font-bold text-foreground">
                   {modalType === "crops"
                     ? "🌾 Crops Production"
                     : "🐄 Animal Population"}{" "}
@@ -1226,18 +1236,18 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
                     setSelectedArea(null);
                     setModalType(null);
                   }}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <i className="fas fa-times text-xl"></i>
                 </button>
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto rounded-lg border border-gray-700">
+              <div className="overflow-x-auto rounded-lg border-0">
                 <table className="w-full text-sm border-collapse">
-                  <thead className="bg-[#252525] sticky top-0">
+                  <thead className="bg-muted sticky top-0">
                     <tr>
-                      <th className="px-4 py-3 text-left text-gray-300">
+                      <th className="px-4 py-3 text-left text-muted-foreground">
                         {modalType === "crops" ? "Crop Type" : "Animal Type"}
                       </th>
                       {Object.keys(
@@ -1260,12 +1270,12 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
                           .map((purok, idx) => (
                             <th
                               key={idx}
-                              className="px-4 py-3 text-left text-gray-300"
+                              className="px-4 py-3 text-left text-muted-foreground"
                             >
                               {purok}
                             </th>
                           ))}
-                      <th className="px-4 py-3 text-left text-gray-300">
+                      <th className="px-4 py-3 text-left text-muted-foreground">
                         Total
                       </th>
                     </tr>
@@ -1278,21 +1288,21 @@ const DashboardPage = ({ user, isSidebarCollapsed }) => {
                     ).map(([name, values], idx) => (
                       <tr
                         key={idx}
-                        className={`border-t border-gray-700 ${
-                          idx % 2 === 0 ? "bg-[#1e1e1e]" : "bg-[#1b1b1b]"
-                        } hover:bg-[#2a2a2a] transition-colors`}
+                        className={`border-t border-border ${
+                          idx % 2 === 0 ? "bg-card" : "bg-muted/10"
+                        } hover:bg-muted/20 transition-colors`}
                       >
-                        <td className="px-4 py-3 text-gray-200 font-medium">
+                        <td className="px-4 py-3 text-foreground font-medium">
                           {name}
                         </td>
                         {Object.entries(values)
                           .filter(([key]) => key !== "total")
                           .map(([key, val]) => (
-                            <td key={key} className="px-4 py-3 text-gray-400">
+                            <td key={key} className="px-4 py-3 text-muted-foreground">
                               {val}
                             </td>
                           ))}
-                        <td className="px-4 py-3 text-white font-bold">
+                        <td className="px-4 py-3 text-foreground font-bold">
                           {values.total}
                         </td>
                       </tr>

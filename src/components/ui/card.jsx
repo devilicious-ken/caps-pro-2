@@ -10,7 +10,8 @@ function Card({
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        // UPDATED: shadow-md -> shadow-lg, hover:shadow-lg -> hover:shadow-xl
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300",
         className
       )}
       {...props} />
@@ -85,7 +86,7 @@ function CardFooter({
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      className={cn("flex items-center px-6 pt-6", className)}
       {...props} />
   );
 }

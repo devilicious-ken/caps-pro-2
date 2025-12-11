@@ -1,22 +1,45 @@
 /** @type {import('tailwindcss').Config} */
-// eslint-disable-next-line no-undef
 module.exports = {
-    content: [
-      './pages/**/*.{js,jsx,ts,tsx}',
-      './components/**/*.{js,jsx,ts,tsx}',
-    ],
-    theme: {
-      extend: {
-        colors: {
-          'dark-bg': '#121212',
-          'dark-card': '#1e1e1e',
-          'dark-secondary': '#252525',
-          'dark-border': '#333333',
-        },
-        borderRadius: {
-          button: '0.375rem',
-        },
+  content: [
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
+    "./pages/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: "var(--card)",
+        "card-foreground": "var(--card-foreground)",
+        popover: "var(--popover)",
+        "popover-foreground": "var(--popover-foreground)",
+        primary: "var(--primary)",
+        "primary-foreground": "var(--primary-foreground)",
+        secondary: "var(--secondary)",
+        "secondary-foreground": "var(--secondary-foreground)",
+        muted: "var(--muted)",
+        "muted-foreground": "var(--muted-foreground)",
+        accent: "var(--accent)",
+        "accent-foreground": "var(--accent-foreground)",
+        destructive: "var(--destructive)",
+        "destructive-foreground": "var(--destructive-foreground)",
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+      },
+      boxShadow: {
+        // Register our custom facebook-style shadow
+        fb: "var(--shadow-fb)",
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
     },
-    plugins: [],
-  }
+  },
+  plugins: [],
+  darkMode: "class",
+};

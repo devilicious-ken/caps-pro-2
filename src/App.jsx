@@ -333,26 +333,7 @@ const AppContent = () => {
         )}
 
         <ConnectionStatus />
-        {showConnectionStatus && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full mx-4">
-              <ConnectionStatus detailed={true} />
-              <button
-                onClick={() => setShowConnectionStatus(false)}
-                className="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-        <button
-          onClick={() => setShowConnectionStatus(true)}
-          className="fixed bottom-16 right-4 bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full z-40"
-          title="Show connection details"
-        >
-          ⚙️
-        </button>
+        
         <div className="flex h-screen overflow-hidden">
           {isSidebarOpen && (
             <div
@@ -383,7 +364,7 @@ const AppContent = () => {
               setCurrentPage={setCurrentPage}
               user={user}
             />
-            <main className="flex-1 overflow-y-auto bg-[#121212]">
+            <main className="flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300">
               <AppRoutes user={user} />
             </main>
           </div>

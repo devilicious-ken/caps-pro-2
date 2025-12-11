@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import ApiService from "../services/api";
+import { ThemeContext } from "../App";
 
 // ✅ Modal Component - Moved outside to prevent re-creation on every render
 const Modal = React.memo(({ show, onClose, title, children, size = "md" }) => {
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === 'dark';
+
   if (!show) return null;
 
   const sizeClasses = {
@@ -26,29 +30,68 @@ const Modal = React.memo(({ show, onClose, title, children, size = "md" }) => {
     full: "max-w-[95vw]",
   };
 
+  // Theme-based Styles for Modal
+  const modalContainerClass = isDark
+    ? "bg-[#1e1e1e] border border-[#333333] shadow-2xl"
+    : "bg-card text-card-foreground border-0 shadow-2xl";
+  
+  const headerBorderClass = isDark ? "border-[#333333]" : "border-border/50";
+  const titleClass = isDark ? "text-white" : "text-foreground";
+  const closeBtnClass = isDark
+    ? "text-gray-400 hover:text-white hover:bg-[#333333]"
+    : "text-muted-foreground hover:text-foreground hover:bg-muted";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div
-        className={`bg-[#252525] border border-[#333333] rounded-lg shadow-xl ${sizeClasses[size]} w-full mx-4 relative`}
+        className={`${modalContainerClass} rounded-lg ${sizeClasses[size]} w-full mx-4 relative flex flex-col max-h-[90vh]`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-[#333333]">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <div className={`flex items-center justify-between p-4 border-b ${headerBorderClass}`}>
+          <h3 className={`text-lg font-semibold ${titleClass}`}>{title}</h3>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="text-gray-400 hover:text-white hover:bg-[#333333]"
+            className={closeBtnClass}
           >
             <i className="fas fa-times"></i>
           </Button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="p-4 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
 });
 
 const RsbsaRecordsPage = () => {
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === 'dark';
+
+  // --- Dynamic Style Classes ---
+  // Text Colors
+  const textClass = isDark ? "text-white" : "text-foreground";
+  const subTextClass = isDark ? "text-gray-400" : "text-muted-foreground";
+
+  // Card Styles (Slight border logic)
+  const cardClass = isDark
+    ? "bg-[#1e1e1e] border border-[#333333] shadow-md"
+    : "bg-card text-card-foreground border-0 shadow-lg hover:shadow-xl transition-shadow duration-300";
+
+  // Input/Select Styles
+  const inputClass = isDark
+    ? "bg-[#252525] border border-[#333333] text-gray-200 focus:ring-blue-500"
+    : "bg-muted/50 border-0 text-foreground focus:ring-primary";
+
+  // Button Styles (Secondary/Cancel)
+  const secondaryBtnClass = isDark
+    ? "bg-[#444444] hover:bg-[#555555] text-white"
+    : "bg-muted hover:bg-muted/80 text-foreground";
+
+  // Table Styles
+  const tableHeaderClass = isDark ? "bg-[#252525]" : "bg-muted/50";
+  const tableBorderClass = isDark ? "border-[#333333]" : "border-border/50";
+  const tableRowHoverClass = isDark ? "hover:bg-[#252525]" : "hover:bg-muted/30";
+
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
@@ -363,28 +406,28 @@ const RsbsaRecordsPage = () => {
   const getStatusBadgeColor = (status) => {
     switch (status) {
       case "Created":
-        return "bg-yellow-900/50 text-yellow-300 hover:bg-yellow-900/70";
+        return "bg-yellow-500/10 text-yellow-600 border-0";
       case "Updating":
-        return "bg-blue-900/50 text-blue-300 hover:bg-blue-900/70";
+        return "bg-blue-500/10 text-blue-600 border-0";
       case "Updated":
-        return "bg-green-900/50 text-green-300 hover:bg-green-900/70";
+        return "bg-green-500/10 text-green-600 border-0";
       default:
-        return "bg-gray-700/50 text-gray-300 hover:bg-gray-700/70";
+        return "bg-gray-500/10 text-gray-500 border-0";
     }
   };
 
   const getTypeBadgeColor = (type) => {
     switch (type) {
       case "Farmer":
-        return "bg-green-900/50 text-green-300 hover:bg-green-900/70";
+        return "bg-green-500/10 text-green-600 border-0";
       case "Fisherfolk":
-        return "bg-blue-900/50 text-blue-300 hover:bg-blue-900/70";
+        return "bg-blue-500/10 text-blue-600 border-0";
       case "Farm Worker/Laborer":
-        return "bg-orange-900/50 text-orange-300 hover:bg-orange-900/70";
+        return "bg-orange-500/10 text-orange-600 border-0";
       case "Agri-Youth":
-        return "bg-red-900/50 text-red-300 hover:bg-red-900/70";
+        return "bg-red-500/10 text-red-600 border-0";
       default:
-        return "bg-gray-700/50 text-gray-300 hover:bg-gray-700/70";
+        return "bg-gray-500/10 text-gray-500 border-0";
     }
   };
 
@@ -393,8 +436,8 @@ const RsbsaRecordsPage = () => {
     return (
       <div className="p-6 flex items-center justify-center h-screen">
         <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
-          <p className="text-gray-300">Loading records...</p>
+          <i className="fas fa-spinner fa-spin text-4xl text-muted-foreground mb-4"></i>
+          <p className="text-muted-foreground">Loading records...</p>
         </div>
       </div>
     );
@@ -404,11 +447,11 @@ const RsbsaRecordsPage = () => {
     return (
       <div className="p-6 flex items-center justify-center h-screen">
         <div className="text-center">
-          <i className="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
-          <p className="text-red-300 mb-4">{error}</p>
+          <i className="fas fa-exclamation-triangle text-4xl text-destructive mb-4"></i>
+          <p className="text-destructive mb-4">{error}</p>
           <Button
             onClick={fetchRegistrants}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <i className="fas fa-sync mr-2"></i> Retry
           </Button>
@@ -422,19 +465,19 @@ const RsbsaRecordsPage = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">RSBSA Records</h1>
+          <h1 className={`text-2xl font-bold ${textClass}`}>RSBSA Records</h1>
         </div>
         <div className="flex gap-2">
           <Button
             onClick={() => setShowFilters(!showFilters)}
-            className="bg-[#444444] hover:bg-[#555555] text-white"
+            className={`${secondaryBtnClass} !rounded-button`}
           >
             <i className="fas fa-filter mr-2"></i> Filters
           </Button>
           {!showDeleteMode ? (
             <Button
               onClick={() => setShowDeleteMode(true)}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white !rounded-button"
             >
               <i className="fas fa-trash mr-2"></i> Delete Records
             </Button>
@@ -443,7 +486,7 @@ const RsbsaRecordsPage = () => {
               <Button
                 onClick={() => setShowDeleteModal(true)}
                 disabled={selectedRecords.length === 0}
-                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 !rounded-button"
               >
                 <i className="fas fa-trash mr-2"></i> Delete Selected (
                 {selectedRecords.length})
@@ -453,7 +496,7 @@ const RsbsaRecordsPage = () => {
                   setShowDeleteMode(false);
                   setSelectedRecords([]);
                 }}
-                className="bg-[#444444] hover:bg-[#555555] text-white"
+                className={`${secondaryBtnClass} !rounded-button`}
               >
                 Cancel
               </Button>
@@ -464,17 +507,17 @@ const RsbsaRecordsPage = () => {
 
       {/* Filters */}
       {showFilters && (
-        <Card className="bg-[#1e1e1e] border-0">
+        <Card className={cardClass}>
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${subTextClass} mb-2`}>
                   Type
                 </label>
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="w-full bg-[#252525] border border-[#333333] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full rounded-md px-3 py-2 cursor-pointer outline-none ${inputClass}`}
                 >
                   <option value="all">All Types</option>
                   <option value="Farmer">Farmer</option>
@@ -486,13 +529,13 @@ const RsbsaRecordsPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${subTextClass} mb-2`}>
                   Status
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full bg-[#252525] border border-[#333333] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full rounded-md px-3 py-2 cursor-pointer outline-none ${inputClass}`}
                 >
                   <option value="all">All Status</option>
                   <option value="Created">Created</option>
@@ -506,7 +549,7 @@ const RsbsaRecordsPage = () => {
                     setTypeFilter("all");
                     setStatusFilter("all");
                   }}
-                  className="w-full bg-[#444444] hover:bg-[#555555] text-white"
+                  className={`w-full ${secondaryBtnClass} !rounded-button`}
                 >
                   Clear Filters
                 </Button>
@@ -517,31 +560,31 @@ const RsbsaRecordsPage = () => {
       )}
 
       {/* Search */}
-      <Card className="bg-[#1e1e1e] border-0">
+      <Card className={cardClass}>
         <CardContent className="p-4">
           <div className="relative">
-            <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <i className={`fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 ${subTextClass}`}></i>
             <Input
               type="text"
               placeholder="Search by name, ID, or address..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-[#252525] border-[#333333] text-white"
+              className={`pl-10 ${inputClass}`}
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Table */}
-      <Card className="bg-[#1e1e1e] border-0">
+      <Card className={cardClass}>
         <CardHeader>
-          <CardTitle className="text-white">Registrant Records</CardTitle>
+          <CardTitle className={textClass}>Registrant Records</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className={`overflow-x-auto rounded-md border ${tableBorderClass}`}>
             <Table>
-              <TableHeader className="bg-[#252525]">
-                <TableRow>
+              <TableHeader className={tableHeaderClass}>
+                <TableRow className={`border-b ${tableBorderClass} hover:bg-transparent`}>
                   {showDeleteMode && (
                     <TableHead className="w-12">
                       <input
@@ -551,18 +594,18 @@ const RsbsaRecordsPage = () => {
                           selectedRecords.length === paginatedRecords.length &&
                           paginatedRecords.length > 0
                         }
-                        className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500"
+                        className={`w-4 h-4 rounded border-gray-600 ${isDark ? 'bg-[#333333]' : 'bg-white'} focus:ring-blue-500`}
                       />
                     </TableHead>
                   )}
-                  <TableHead className="text-gray-300">Reference ID</TableHead>
-                  <TableHead className="text-gray-300">Name</TableHead>
-                  <TableHead className="text-gray-300">Address</TableHead>
-                  <TableHead className="text-gray-300">Type</TableHead>
-                  <TableHead className="text-gray-300">Phone</TableHead>
-                  <TableHead className="text-gray-300">Registered On</TableHead>
-                  <TableHead className="text-gray-300">Status</TableHead>
-                  <TableHead className="text-gray-300 text-right">
+                  <TableHead className={subTextClass}>Reference ID</TableHead>
+                  <TableHead className={subTextClass}>Name</TableHead>
+                  <TableHead className={subTextClass}>Address</TableHead>
+                  <TableHead className={subTextClass}>Type</TableHead>
+                  <TableHead className={subTextClass}>Phone</TableHead>
+                  <TableHead className={subTextClass}>Registered On</TableHead>
+                  <TableHead className={subTextClass}>Status</TableHead>
+                  <TableHead className={`${subTextClass} text-right`}>
                     Actions
                   </TableHead>
                 </TableRow>
@@ -572,7 +615,7 @@ const RsbsaRecordsPage = () => {
                   <TableRow>
                     <TableCell
                       colSpan={showDeleteMode ? 9 : 8}
-                      className="text-center text-gray-400 py-8"
+                      className={`text-center ${subTextClass} py-8`}
                     >
                       No records found
                     </TableCell>
@@ -581,7 +624,7 @@ const RsbsaRecordsPage = () => {
                   paginatedRecords.map((record) => (
                     <TableRow
                       key={record.dbId}
-                      className="border-t border-[#333333] hover:bg-[#252525]"
+                      className={`border-b ${tableBorderClass} ${tableRowHoverClass} transition-colors`}
                     >
                       {showDeleteMode && (
                         <TableCell>
@@ -589,17 +632,17 @@ const RsbsaRecordsPage = () => {
                             type="checkbox"
                             checked={selectedRecords.includes(record.id)}
                             onChange={() => handleSelectRecord(record.id)}
-                            className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500"
+                            className={`w-4 h-4 rounded border-gray-600 ${isDark ? 'bg-[#333333]' : 'bg-white'} focus:ring-blue-500`}
                           />
                         </TableCell>
                       )}
-                      <TableCell className="text-gray-400 font-mono text-sm">
+                      <TableCell className={`${subTextClass} font-mono text-sm`}>
                         {record.id}
                       </TableCell>
-                      <TableCell className="text-gray-200">
+                      <TableCell className={`text-sm ${textClass}`}>
                         {record.name}
                       </TableCell>
-                      <TableCell className="text-gray-400 text-sm">
+                      <TableCell className={`${subTextClass} text-sm`}>
                         {record.address}
                       </TableCell>
                       <TableCell>
@@ -607,10 +650,10 @@ const RsbsaRecordsPage = () => {
                           {record.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-gray-400 text-sm">
+                      <TableCell className={`${subTextClass} text-sm`}>
                         {record.phone}
                       </TableCell>
-                      <TableCell className="text-gray-400 text-sm">
+                      <TableCell className={`${subTextClass} text-sm`}>
                         {record.registeredOn}
                       </TableCell>
                       <TableCell>
@@ -623,7 +666,7 @@ const RsbsaRecordsPage = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewRecord(record)}
-                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                         >
                           <i className="fas fa-eye mr-1"></i> View
                         </Button>
@@ -637,8 +680,8 @@ const RsbsaRecordsPage = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#333333]">
-              <p className="text-sm text-gray-400">
+            <div className={`flex items-center justify-between mt-4 pt-4 border-t ${tableBorderClass}`}>
+              <p className={`text-sm ${subTextClass}`}>
                 Showing {startIndex + 1} to{" "}
                 {Math.min(startIndex + itemsPerPage, filteredRecords.length)} of{" "}
                 {filteredRecords.length} records
@@ -651,11 +694,11 @@ const RsbsaRecordsPage = () => {
                     setCurrentPage((prev) => Math.max(prev - 1, 1))
                   }
                   disabled={currentPage === 1}
-                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 disabled:opacity-50"
+                  className={`border ${tableBorderClass} bg-transparent hover:bg-muted ${subTextClass} disabled:opacity-50 !rounded-button`}
                 >
                   <i className="fas fa-chevron-left"></i>
                 </Button>
-                <span className="px-4 py-2 text-gray-300">
+                <span className={`px-4 py-2 ${subTextClass}`}>
                   Page {currentPage} of {totalPages}
                 </span>
                 <Button
@@ -665,7 +708,7 @@ const RsbsaRecordsPage = () => {
                     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                   }
                   disabled={currentPage === totalPages}
-                  className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300 disabled:opacity-50"
+                  className={`border ${tableBorderClass} bg-transparent hover:bg-muted ${subTextClass} disabled:opacity-50 !rounded-button`}
                 >
                   <i className="fas fa-chevron-right"></i>
                 </Button>
@@ -696,8 +739,8 @@ const RsbsaRecordsPage = () => {
             </div>
           )}
 
-          <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-4">
-            <p className="text-red-300">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+            <p className="text-red-500 text-sm">
               <i className="fas fa-exclamation-triangle mr-2"></i>
               Are you sure you want to delete {selectedRecords.length} selected
               record(s)? This will move them to the deleted records section.
@@ -705,7 +748,7 @@ const RsbsaRecordsPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium ${subTextClass} mb-2`}>
               Reason for Deletion (Optional)
             </label>
             <textarea
@@ -713,8 +756,7 @@ const RsbsaRecordsPage = () => {
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}
               rows={3}
-              className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-y-auto"
-              style={{ height: "120px", resize: "vertical" }}
+              className={`w-full rounded-md px-3 py-2 outline-none resize-none ${inputClass}`}
               disabled={isDeleting}
               autoFocus
             />
@@ -727,14 +769,14 @@ const RsbsaRecordsPage = () => {
                 setShowDeleteModal(false);
                 setDeleteReason("");
               }}
-              className="border-[#444444] bg-transparent hover:bg-[#333333] text-gray-300"
+              className={`border ${tableBorderClass} bg-transparent hover:bg-muted ${textClass} !rounded-button`}
               disabled={isDeleting}
             >
               Cancel
             </Button>
             <Button
               onClick={handleDeleteRecords}
-              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 !rounded-button"
               disabled={isDeleting}
             >
               {isDeleting ? (
@@ -762,16 +804,16 @@ const RsbsaRecordsPage = () => {
           <div className="space-y-6 max-h-[70vh] overflow-y-auto">
             {/* Personal Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-user mr-2"></i> Personal Information
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">Reference ID</label>
-                  <p className="text-white font-mono">{viewingRecord.id}</p>
+                  <label className={`text-sm ${subTextClass}`}>Reference ID</label>
+                  <p className={`${textClass} font-mono`}>{viewingRecord.id}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Registry Type</label>
+                  <label className={`text-sm ${subTextClass}`}>Registry Type</label>
                   <p>
                     <Badge className={getTypeBadgeColor(viewingRecord.type)}>
                       {viewingRecord.type}
@@ -779,46 +821,46 @@ const RsbsaRecordsPage = () => {
                   </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-sm text-gray-400">Full Name</label>
-                  <p className="text-white">{viewingRecord.name}</p>
+                  <label className={`text-sm ${subTextClass}`}>Full Name</label>
+                  <p className={textClass}>{viewingRecord.name}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Sex</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Sex</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.sex || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Date of Birth</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Date of Birth</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.date_of_birth
                       ? formatDate(viewingRecord.fullData.date_of_birth)
                       : "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">
+                  <label className={`text-sm ${subTextClass}`}>
                     Place of Birth
                   </label>
-                  <p className="text-white">
+                  <p className={textClass}>
                     {viewingRecord.fullData?.place_of_birth || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Civil Status</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Civil Status</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.civil_status || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Religion</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Religion</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.religion || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Spouse Name</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Spouse Name</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.spouse_name || "N/A"}
                   </p>
                 </div>
@@ -827,58 +869,58 @@ const RsbsaRecordsPage = () => {
 
             {/* Contact Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-phone mr-2"></i> Contact Information
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">Mobile Number</label>
-                  <p className="text-white">{viewingRecord.phone}</p>
+                  <label className={`text-sm ${subTextClass}`}>Mobile Number</label>
+                  <p className={textClass}>{viewingRecord.phone}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">
+                  <label className={`text-sm ${subTextClass}`}>
                     Landline Number
                   </label>
-                  <p className="text-white">
+                  <p className={textClass}>
                     {viewingRecord.fullData?.landline_number || "N/A"}
                   </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-sm text-gray-400">Address</label>
-                  <p className="text-white">{viewingRecord.address}</p>
+                  <label className={`text-sm ${subTextClass}`}>Address</label>
+                  <p className={textClass}>{viewingRecord.address}</p>
                 </div>
               </div>
             </div>
 
             {/* Household Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-home mr-2"></i> Household Information
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">
+                  <label className={`text-sm ${subTextClass}`}>
                     Household Head
                   </label>
-                  <p className="text-white">
+                  <p className={textClass}>
                     {viewingRecord.fullData?.is_household_head ? "Yes" : "No"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Total Members</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Total Members</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.household_members_count || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Males</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Males</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.household_males || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Females</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Females</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.household_females || "N/A"}
                   </p>
                 </div>
@@ -887,7 +929,7 @@ const RsbsaRecordsPage = () => {
 
             {/* Farm/Fishing Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-tractor mr-2"></i>{" "}
                 {viewingRecord.type === "Farmer" ? "Farm" : "Fishing"}{" "}
                 Information
@@ -896,26 +938,26 @@ const RsbsaRecordsPage = () => {
                 {viewingRecord.type === "Farmer" && (
                   <>
                     <div>
-                      <label className="text-sm text-gray-400">
+                      <label className={`text-sm ${subTextClass}`}>
                         Total Farm Size
                       </label>
-                      <p className="text-white">{viewingRecord.farmSize}</p>
+                      <p className={textClass}>{viewingRecord.farmSize}</p>
                     </div>
                     <div className="col-span-2">
-                      <label className="text-sm text-gray-400">Crops</label>
-                      <p className="text-white">{viewingRecord.crops}</p>
+                      <label className={`text-sm ${subTextClass}`}>Crops</label>
+                      <p className={textClass}>{viewingRecord.crops}</p>
                     </div>
                     <div className="col-span-2">
-                      <label className="text-sm text-gray-400">Livestock</label>
-                      <p className="text-white">
+                      <label className={`text-sm ${subTextClass}`}>Livestock</label>
+                      <p className={textClass}>
                         {viewingRecord.fullData?.livestock
                           ?.map((l) => `${l.animal} (${l.head_count})`)
                           .join(", ") || "N/A"}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <label className="text-sm text-gray-400">Poultry</label>
-                      <p className="text-white">
+                      <label className={`text-sm ${subTextClass}`}>Poultry</label>
+                      <p className={textClass}>
                         {viewingRecord.fullData?.poultry
                           ?.map((p) => `${p.bird} (${p.head_count})`)
                           .join(", ") || "N/A"}
@@ -925,10 +967,10 @@ const RsbsaRecordsPage = () => {
                 )}
                 {viewingRecord.type === "Fisherfolk" && (
                   <div className="col-span-2">
-                    <label className="text-sm text-gray-400">
+                    <label className={`text-sm ${subTextClass}`}>
                       Fishing Activities
                     </label>
-                    <p className="text-white">
+                    <p className={textClass}>
                       {viewingRecord.fullData?.fishing_activities
                         ?.map((f) => f.activity)
                         .join(", ") || "N/A"}
@@ -940,50 +982,50 @@ const RsbsaRecordsPage = () => {
 
             {/* Government IDs & Benefits Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-id-card mr-2"></i> Government IDs &
                 Benefits
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">
+                  <label className={`text-sm ${subTextClass}`}>
                     Has Government ID
                   </label>
-                  <p className="text-white">
+                  <p className={textClass}>
                     {viewingRecord.fullData?.has_government_id ? "Yes" : "No"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">ID Type</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>ID Type</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.government_id_type || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">PWD</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>PWD</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.is_pwd ? "Yes" : "No"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">
+                  <label className={`text-sm ${subTextClass}`}>
                     4Ps Beneficiary
                   </label>
-                  <p className="text-white">
+                  <p className={textClass}>
                     {viewingRecord.fullData?.is_4ps ? "Yes" : "No"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Indigenous</label>
-                  <p className="text-white">
+                  <label className={`text-sm ${subTextClass}`}>Indigenous</label>
+                  <p className={textClass}>
                     {viewingRecord.fullData?.is_indigenous ? "Yes" : "No"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">
+                  <label className={`text-sm ${subTextClass}`}>
                     Indigenous Group
                   </label>
-                  <p className="text-white">
+                  <p className={textClass}>
                     {viewingRecord.fullData?.indigenous_group_name || "N/A"}
                   </p>
                 </div>
@@ -992,21 +1034,21 @@ const RsbsaRecordsPage = () => {
 
             {/* Registration Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-calendar mr-2"></i> Registration
                 Information
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">Registered On</label>
-                  <p className="text-white">{viewingRecord.registeredOn}</p>
+                  <label className={`text-sm ${subTextClass}`}>Registered On</label>
+                  <p className={textClass}>{viewingRecord.registeredOn}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Last Modified</label>
-                  <p className="text-white">{viewingRecord.modifiedOn}</p>
+                  <label className={`text-sm ${subTextClass}`}>Last Modified</label>
+                  <p className={textClass}>{viewingRecord.modifiedOn}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Status</label>
+                  <label className={`text-sm ${subTextClass}`}>Status</label>
                   <p>
                     <Badge
                       className={getStatusBadgeColor(viewingRecord.status)}
@@ -1020,16 +1062,16 @@ const RsbsaRecordsPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-between pt-4 border-t border-[#333333] mt-6">
+          <div className={`flex justify-between pt-4 border-t ${tableBorderClass} mt-6`}>
             <Button
               onClick={() => setShowViewModal(false)}
-              className="bg-[#444444] hover:bg-[#555555] text-white"
+              className={`${secondaryBtnClass} !rounded-button`}
             >
               <i className="fas fa-times mr-2"></i> Close
             </Button>
             <Button
               onClick={() => handleEditClick(viewingRecord)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white !rounded-button"
             >
               <i className="fas fa-edit mr-2"></i> Edit Record
             </Button>
@@ -1037,7 +1079,6 @@ const RsbsaRecordsPage = () => {
         </Modal>
       )}
 
-      {/* ✅ Edit Record Modal - CONTINUES IN NEXT PART... */}
       {/* ✅ Edit Record Modal */}
       {showEditModal && editingRecord && (
         <Modal
@@ -1049,7 +1090,7 @@ const RsbsaRecordsPage = () => {
             }
           }}
           title="Edit Registrant"
-          size="3xl" // ✅ Extra wide modal
+          size="3xl"
         >
           <div className="space-y-6 max-h-[75vh] overflow-y-auto">
             {/* Loading Overlay */}
@@ -1064,12 +1105,12 @@ const RsbsaRecordsPage = () => {
 
             {/* Personal Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-user mr-2"></i> Personal Information
               </h4>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     First Name *
                   </label>
                   <Input
@@ -1080,12 +1121,12 @@ const RsbsaRecordsPage = () => {
                         first_name: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Middle Name
                   </label>
                   <Input
@@ -1096,12 +1137,12 @@ const RsbsaRecordsPage = () => {
                         middle_name: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Surname *
                   </label>
                   <Input
@@ -1112,12 +1153,12 @@ const RsbsaRecordsPage = () => {
                         surname: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Sex *
                   </label>
                   <select
@@ -1125,7 +1166,7 @@ const RsbsaRecordsPage = () => {
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, sex: e.target.value })
                     }
-                    className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`${inputClass} w-full rounded-md px-3 py-2 outline-none`}
                     disabled={isSaving}
                   >
                     <option value="">Select</option>
@@ -1134,7 +1175,7 @@ const RsbsaRecordsPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Date of Birth
                   </label>
                   <Input
@@ -1146,12 +1187,12 @@ const RsbsaRecordsPage = () => {
                         date_of_birth: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Place of Birth
                   </label>
                   <Input
@@ -1162,12 +1203,12 @@ const RsbsaRecordsPage = () => {
                         place_of_birth: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Civil Status
                   </label>
                   <select
@@ -1178,7 +1219,7 @@ const RsbsaRecordsPage = () => {
                         civil_status: e.target.value,
                       })
                     }
-                    className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`${inputClass} w-full rounded-md px-3 py-2 outline-none`}
                     disabled={isSaving}
                   >
                     <option value="">Select</option>
@@ -1189,7 +1230,7 @@ const RsbsaRecordsPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Religion
                   </label>
                   <Input
@@ -1200,12 +1241,12 @@ const RsbsaRecordsPage = () => {
                         religion: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Spouse Name
                   </label>
                   <Input
@@ -1216,7 +1257,7 @@ const RsbsaRecordsPage = () => {
                         spouse_name: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
@@ -1225,12 +1266,12 @@ const RsbsaRecordsPage = () => {
 
             {/* Contact Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-phone mr-2"></i> Contact Information
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Mobile Number
                   </label>
                   <Input
@@ -1241,12 +1282,12 @@ const RsbsaRecordsPage = () => {
                         mobile_number: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Landline Number
                   </label>
                   <Input
@@ -1257,7 +1298,7 @@ const RsbsaRecordsPage = () => {
                         landline_number: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
@@ -1266,7 +1307,7 @@ const RsbsaRecordsPage = () => {
 
             {/* Household Information Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-home mr-2"></i> Household Information
               </h4>
               <div className="grid grid-cols-3 gap-4">
@@ -1280,15 +1321,15 @@ const RsbsaRecordsPage = () => {
                         is_household_head: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500 mr-2"
+                    className={`w-4 h-4 rounded ${isDark ? 'bg-[#333333] border-gray-600' : 'bg-white border-input'} focus:ring-blue-500 mr-2`}
                     disabled={isSaving}
                   />
-                  <label className="text-sm text-gray-300">
+                  <label className={`text-sm ${subTextClass}`}>
                     Household Head
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Total Members
                   </label>
                   <Input
@@ -1300,12 +1341,12 @@ const RsbsaRecordsPage = () => {
                         household_members_count: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Males
                   </label>
                   <Input
@@ -1317,12 +1358,12 @@ const RsbsaRecordsPage = () => {
                         household_males: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Females
                   </label>
                   <Input
@@ -1334,7 +1375,7 @@ const RsbsaRecordsPage = () => {
                         household_females: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving}
                   />
                 </div>
@@ -1343,7 +1384,7 @@ const RsbsaRecordsPage = () => {
 
             {/* Government IDs & Benefits Section */}
             <div>
-              <h4 className="text-lg font-semibold text-white mb-3 border-b border-[#333333] pb-2">
+              <h4 className={`text-lg font-semibold ${textClass} mb-3 border-b ${tableBorderClass} pb-2`}>
                 <i className="fas fa-id-card mr-2"></i> Government IDs &
                 Benefits
               </h4>
@@ -1358,15 +1399,15 @@ const RsbsaRecordsPage = () => {
                         has_government_id: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500 mr-2"
+                    className={`w-4 h-4 rounded ${isDark ? 'bg-[#333333] border-gray-600' : 'bg-white border-input'} focus:ring-blue-500 mr-2`}
                     disabled={isSaving}
                   />
-                  <label className="text-sm text-gray-300">
+                  <label className={`text-sm ${subTextClass}`}>
                     Has Government ID
                   </label>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     ID Type
                   </label>
                   <Input
@@ -1377,7 +1418,7 @@ const RsbsaRecordsPage = () => {
                         government_id_type: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving || !editFormData.has_government_id}
                   />
                 </div>
@@ -1391,10 +1432,10 @@ const RsbsaRecordsPage = () => {
                         is_pwd: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500 mr-2"
+                    className={`w-4 h-4 rounded ${isDark ? 'bg-[#333333] border-gray-600' : 'bg-white border-input'} focus:ring-blue-500 mr-2`}
                     disabled={isSaving}
                   />
-                  <label className="text-sm text-gray-300">PWD</label>
+                  <label className={`text-sm ${subTextClass}`}>PWD</label>
                 </div>
                 <div className="flex items-center">
                   <input
@@ -1406,10 +1447,10 @@ const RsbsaRecordsPage = () => {
                         is_4ps: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500 mr-2"
+                    className={`w-4 h-4 rounded ${isDark ? 'bg-[#333333] border-gray-600' : 'bg-white border-input'} focus:ring-blue-500 mr-2`}
                     disabled={isSaving}
                   />
-                  <label className="text-sm text-gray-300">
+                  <label className={`text-sm ${subTextClass}`}>
                     4Ps Beneficiary
                   </label>
                 </div>
@@ -1423,13 +1464,13 @@ const RsbsaRecordsPage = () => {
                         is_indigenous: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 rounded border-gray-600 bg-[#333333] focus:ring-blue-500 mr-2"
+                    className={`w-4 h-4 rounded ${isDark ? 'bg-[#333333] border-gray-600' : 'bg-white border-input'} focus:ring-blue-500 mr-2`}
                     disabled={isSaving}
                   />
-                  <label className="text-sm text-gray-300">Indigenous</label>
+                  <label className={`text-sm ${subTextClass}`}>Indigenous</label>
                 </div>
                 <div className="col-span-3">
-                  <label className="block text-sm text-gray-400 mb-1">
+                  <label className={`block text-sm ${subTextClass} mb-1`}>
                     Indigenous Group Name
                   </label>
                   <Input
@@ -1440,7 +1481,7 @@ const RsbsaRecordsPage = () => {
                         indigenous_group_name: e.target.value,
                       })
                     }
-                    className="bg-[#333333] border-[#444444] text-white"
+                    className={inputClass}
                     disabled={isSaving || !editFormData.is_indigenous}
                   />
                 </div>
@@ -1449,20 +1490,20 @@ const RsbsaRecordsPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-between pt-4 border-t border-[#333333] mt-6">
+          <div className={`flex justify-between pt-4 border-t ${tableBorderClass} mt-6`}>
             <Button
               onClick={() => {
                 setShowEditModal(false);
                 setEditingRecord(null);
               }}
-              className="bg-[#444444] hover:bg-[#555555] text-white"
+              className={`${secondaryBtnClass} !rounded-button`}
               disabled={isSaving}
             >
               <i className="fas fa-times mr-2"></i> Cancel
             </Button>
             <Button
               onClick={handleSaveEdit}
-              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 !rounded-button"
               disabled={isSaving}
             >
               {isSaving ? (
@@ -1487,14 +1528,14 @@ const RsbsaRecordsPage = () => {
         >
           <div className="text-center py-6">
             <i className="fas fa-check-circle text-green-400 text-5xl mb-3"></i>
-            <h3 className="text-green-300 font-bold text-xl mb-2">
+            <h3 className="text-green-500 font-bold text-xl mb-2">
               Operation Successful
             </h3>
-            <p className="text-gray-300 mb-4">
+            <p className={`${subTextClass} mb-4`}>
               {successMessage || "Records have been deleted successfully."}
             </p>
             <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white !rounded-button"
               onClick={() => {
                 setShowSuccessModal(false);
                 setShowErrorModal(false);
@@ -1517,14 +1558,14 @@ const RsbsaRecordsPage = () => {
         >
           <div className="text-center py-6">
             <i className="fas fa-exclamation-triangle text-red-400 text-5xl mb-3"></i>
-            <h3 className="text-red-300 font-bold text-xl mb-2">
+            <h3 className="text-red-500 font-bold text-xl mb-2">
               Operation Failed
             </h3>
-            <p className="text-gray-300 mb-4">
+            <p className={`${subTextClass} mb-4`}>
               {errorMessage || "An error occurred while deleting records."}
             </p>
             <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white !rounded-button"
               onClick={() => setShowErrorModal(false)}
             >
               Close
